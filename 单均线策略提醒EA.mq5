@@ -1,0 +1,2 @@
+#include"include/CStrategy.mqh"
+
