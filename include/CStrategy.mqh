@@ -47,8 +47,17 @@ public:
     
     }
 
+    virtual void ExitTrade() {
+    }
+
     // Tick事件入口
     void OnTick() {
         ExecuteTrade();
     }
+
+    void OnDeinit(const int reason) {
+        ExitTrade();
+    }
+
+
 };

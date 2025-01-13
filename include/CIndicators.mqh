@@ -93,7 +93,20 @@ protected:
     int CreateHandle() override
     {
         ArraySetAsSeries(bufferValue, true);
-        return iMA(m_symbol, m_timeFrame, m_value, 0, m_method, PRICE_CLOSE);
+
+        int handle = iMA(m_symbol, m_timeFrame, m_value, 0, m_method, PRICE_CLOSE);
+        if (handle == INVALID_HANDLE)
+        {
+            //--- 叙述失败和输出错误代码
+            PrintFormat("Failed to create handle of the iMA indicator for the symbol %s/%s, error code %d",
+                        m_symbol,
+                        EnumToString(m_timeFrame),
+                        GetLastError());
+            //--- 指标提前停止
+            return INVALID_HANDLE;
+        }
+
+        return handle;
     }
 
 public:
@@ -246,30 +259,27 @@ private:
     int m_donchianValue;
     double m_bufferValue[];
     int m_AMAValue;     // KAMA指标值
-    int m_fastEMAValue;  // 快速EMA
+    int m_fastEMAValue; // 快速EMA
     int m_slowEMAValue; // 慢速EMA
 
-    protected:
+protected:
     int CreateHandle() override
     {
         ArraySetAsSeries(m_bufferValue, true);
-        return iAMA(m_symbol, m_timeFrame, m_AMAValue, m_fastEMAValue, m_slowEMAValue, 0,PRICE_CLOSE);
+        return iAMA(m_symbol, m_timeFrame, m_AMAValue, m_fastEMAValue, m_slowEMAValue, 0, PRICE_CLOSE);
     }
+
 public:
     CAMA(string symbol, ENUM_TIMEFRAMES timeFrame, int amaValue, int fastEMAValue, int slowEMAValue)
-        : CIndicator(symbol, timeFrame), m_AMAValue(amaValue),m_fastEMAValue(fastEMAValue),m_slowEMAValue(slowEMAValue) {}
+        : CIndicator(symbol, timeFrame), m_AMAValue(amaValue), m_fastEMAValue(fastEMAValue), m_slowEMAValue(slowEMAValue) {}
 
     double GetValue(int index) override
     {
         CopyBuffer(m_handle, 0, index, 1, m_bufferValue);
         return m_bufferValue[0];
     }
-    void GetValues(int number,double &bufferValue[])
+    void GetValues(int number, double &bufferValue[])
     {
         CopyBuffer(m_handle, 0, 1, number, bufferValue);
     }
-
-
-
-
 };
