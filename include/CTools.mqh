@@ -389,5 +389,6 @@ bool SendEmail(const string subject, const string body)
     }
 
     Print("邮件发送成功。");
+    Sleep(2500);
     return true;
 }
