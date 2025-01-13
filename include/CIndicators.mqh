@@ -98,7 +98,7 @@ protected:
 
 public:
     CMA(string symbol, ENUM_TIMEFRAMES timeFrame, int maValue, ENUM_MA_METHOD maMethod)
-        : CIndicator(symbol, timeFrame), m_value(maValue), m_method(maMethod) {}
+        : CIndicator(symbol, timeFrame), m_value(maValue), m_method(maMethod) {};
 
     double GetValue(int index) override
     {
