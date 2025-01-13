@@ -25,8 +25,9 @@ public:
     ~CStrategy() {};
 
     // 初始化方法
-    virtual void Initialize() {
+    virtual bool Initialize() {
         Print("Strategy Initialized: ", m_Symbol);
+        return true;
     }
 
     // 检查信号（虚函数，需子类实现）
