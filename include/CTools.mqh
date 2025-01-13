@@ -1,6 +1,5 @@
 #include <Trade/Trade.mqh>
 
-
 enum SIGN
 {
     BUY,

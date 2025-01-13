@@ -1,5 +1,6 @@
 #include "include/CStrategy.mqh"
 #include "include/CIndicators.mqh"
+#include "include/CTools.mqh"
 input group "==============基本参数==============";
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 时间周期
 input int InpMagicNumber = 542824;                   // 魔术号
@@ -10,11 +11,13 @@ class CSimpleMA : public CStrategy
 {
 private:
     CMA *m_EMA;
+    CTools *m_Tools;
 
 public:
     CSimpleMA(string symbol, ENUM_TIMEFRAMES timeFrame, int EMAValue, int magicNumber) : CStrategy(symbol, timeFrame, magicNumber)
     {
         m_EMA = new CMA(symbol, timeFrame, EMAValue, MODE_EMA);
+        m_Tools = new CTools(symbol, &m_Trade);
         m_Trade.SetExpertMagicNumber(m_MagicNumber);
     }
     ~CSimpleMA() {};
@@ -53,14 +56,33 @@ public:
 
         return NoSignal;
     }
-
     void ExecuteTrade() override
     {
+        if (!m_Tools.IsNewBar(m_Timeframe))
+            return;
+        SignalType signal = CheckSignal();
+        if (signal == BuySignal)
+        {
+            // 打印日志信息
+            string logMessage = StringFormat("Symbol: %s, Timeframe: %s, Direction: Buy", m_Symbol, EnumToString(m_Timeframe));
+            Print(logMessage); // 输出日志
+            // 发送邮件通知
+            SendEmail("Buy Signal", logMessage);
+        }
+        else if (signal == SellSignal)
+        {
+            // 打印日志信息
+            string logMessage = StringFormat("Symbol: %s, Timeframe: %s, Direction: Sell", m_Symbol, EnumToString(m_Timeframe));
+            Print(logMessage); // 输出日志
+            // 发送邮件通知
+            SendEmail("Sell Signal", logMessage);
+        }
     }
 };
 
 int OnInit()
 {
+    
     return (INIT_SUCCEEDED);
 }
 void OnTick()
