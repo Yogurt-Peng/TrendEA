@@ -388,7 +388,7 @@ bool SendEmail(const string subject, const string body)
         return false;
     }
 
-    Print("邮件发送成功。");
+    Print("邮件发送成功，休眠2.5秒");
     Sleep(2500);
     return true;
 }

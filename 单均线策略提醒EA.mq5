@@ -79,17 +79,19 @@ public:
         {
             // 打印日志信息
             string logMessage = StringFormat("Symbol: %s, Timeframe: %s, Direction: Buy", m_Symbol, EnumToString(m_Timeframe));
+            string logSubject = StringFormat("Buy %s %s", m_Symbol, EnumToString(m_Timeframe));
             Print(logMessage); // 输出日志
             // 发送邮件通知
-            SendEmail("Buy Signal", logMessage);
+            SendEmail(logSubject, logMessage);
         }
         else if (signal == SellSignal)
         {
             // 打印日志信息
             string logMessage = StringFormat("Symbol: %s, Timeframe: %s, Direction: Sell", m_Symbol, EnumToString(m_Timeframe));
+            string logSubject = StringFormat("Sell %s %s", m_Symbol, EnumToString(m_Timeframe));
             Print(logMessage); // 输出日志
             // 发送邮件通知
-            SendEmail("Sell Signal", logMessage);
+            SendEmail(logSubject, logMessage);
         }
     }
 
@@ -149,7 +151,7 @@ void OnTick()
     // 在每个品种的每个周期上运行OnTick
     for (int i = 0; i < SymbolsCount; i++)
     {
-        SimpleMAArray[0][i].OnTick(); // 1小时周期
+        // SimpleMAArray[0][i].OnTick(); // 1小时周期
         SimpleMAArray[1][i].OnTick(); // 4小时周期
         SimpleMAArray[2][i].OnTick(); // 日线周期
     }
