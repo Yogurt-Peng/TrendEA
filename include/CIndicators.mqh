@@ -25,7 +25,7 @@ public:
     int GetHandle() { return m_handle; }
 
     // 基类中声明 GetValue 为虚函数（派生类可以重载）
-    virtual double GetValue(int index) = 0;
+    virtual double GetValue(int index) ;
     // 如果需要两个参数，可以重载
     virtual double GetValue(int bufferIndex, int index) { return 0.0; }
 };
