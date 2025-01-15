@@ -46,7 +46,7 @@ public:
     }
 
     // 自定义信号逻辑
-    SignalType CheckSignal() override
+    SignalType TradeSignal() override
     {
         MqlRates rates[];
         ArraySetAsSeries(rates, true);
@@ -74,7 +74,7 @@ public:
         if (!m_Tools.IsNewBar(m_Timeframe))
             return;
 
-        SignalType signal = CheckSignal();
+        SignalType signal = TradeSignal();
         if (signal == BuySignal)
         {
             // 打印日志信息

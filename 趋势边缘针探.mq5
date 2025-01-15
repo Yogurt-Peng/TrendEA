@@ -52,7 +52,7 @@ public:
     }
 
     // 自定义信号逻辑
-    SignalType CheckSignal() override
+    SignalType TradeSignal() override
     {
         SignalType signal = NoSignal;
         // 是否多头排列
@@ -105,7 +105,7 @@ public:
             return;
         m_Tools.ApplyTrailingStopByHighLow(10, m_MagicNumber);
 
-        SignalType signal = CheckSignal();
+        SignalType signal = TradeSignal();
         double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
         double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
 

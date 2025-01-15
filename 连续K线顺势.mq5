@@ -35,7 +35,7 @@ public:
     }
 
     // 自定义信号逻辑
-    SignalType CheckSignal() override
+    SignalType TradeSignal() override
     {
         int count = 1;
         while (iClose(m_Symbol, m_Timeframe, count) > iOpen(m_Symbol, m_Timeframe, count) && iClose(m_Symbol, m_Timeframe, count) > iClose(m_Symbol, m_Timeframe, count + 1))
@@ -67,7 +67,7 @@ public:
         if (!m_Tools.IsNewBar(m_Timeframe))
             return;
 
-        SignalType signal = CheckSignal();
+        SignalType signal = TradeSignal();
         double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
         double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
         double buySl = (InpStopLoss == 0) ? 0 : ask - InpStopLoss * _Point;

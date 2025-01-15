@@ -31,7 +31,7 @@ public:
     }
 
     // 检查信号（虚函数，需子类实现）
-    virtual SignalType CheckSignal() {
+    virtual SignalType TradeSignal() {
         Print("CheckSignal() not implemented!");
         return NoSignal;
     }
