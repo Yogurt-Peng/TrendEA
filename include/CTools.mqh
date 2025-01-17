@@ -195,7 +195,13 @@ void CTools::ApplyTrailingStopByHighLow(int barNumber, long magicNum)
             if (type == POSITION_TYPE_BUY)
             {
 
-                if (Pos_SL < low)
+                if (Pos_SL < low && Pos_SL != 0)
+                {
+                    if (!m_trade.PositionModify(tick, low, Pos_TP))
+                        Print(m_symbol, "|", magicNum, " 修改止损失败, Return code=", m_trade.ResultRetcode(),
+                              ". Code description: ", m_trade.ResultRetcodeDescription());
+                }
+                else if (Pos_SL == 0 && Pos_Curr > Pos_Open)
                 {
                     if (!m_trade.PositionModify(tick, low, Pos_TP))
                         Print(m_symbol, "|", magicNum, " 修改止损失败, Return code=", m_trade.ResultRetcode(),
@@ -204,8 +210,13 @@ void CTools::ApplyTrailingStopByHighLow(int barNumber, long magicNum)
             }
             else if (type == POSITION_TYPE_SELL)
             {
-
-                if (Pos_SL > high)
+                if (Pos_SL > high && Pos_SL != 0)
+                {
+                    if (!m_trade.PositionModify(tick, high, Pos_TP))
+                        Print(m_symbol, "|", magicNum, " 修改止损失败, Return code=", m_trade.ResultRetcode(),
+                              ". Code description: ", m_trade.ResultRetcodeDescription());
+                }
+                else if (Pos_SL == 0 && Pos_Curr < Pos_Open)
                 {
                     if (!m_trade.PositionModify(tick, high, Pos_TP))
                         Print(m_symbol, "|", magicNum, " 修改止损失败, Return code=", m_trade.ResultRetcode(),
