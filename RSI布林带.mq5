@@ -68,9 +68,6 @@ public:
         double ask = SymbolInfoDouble(m_Symbol, SYMBOL_ASK);
         double bid = SymbolInfoDouble(m_Symbol, SYMBOL_BID);
 
-
-
-
         if (m_Tools.GetPositionCount(m_MagicNumber) > 0)
         {
             // TradeManagement();
@@ -130,9 +127,6 @@ public:
                 ulong tick = m_positionInfo.Ticket();
                 long type = m_positionInfo.PositionType();
                 double Pos_Open = m_positionInfo.PriceOpen();
-                double Pos_Curr = m_positionInfo.PriceCurrent();
-                double Pos_TP = m_positionInfo.TakeProfit();
-                double Pos_SL = m_positionInfo.StopLoss();
 
                 if (type == POSITION_TYPE_BUY)
                 {
