@@ -25,7 +25,7 @@ public:
     int GetHandle() { return m_handle; }
 
     // 基类中声明 GetValue 为虚函数（派生类可以重载）
-    virtual double GetValue(int index) ;
+    virtual double GetValue(int index);
     // 如果需要两个参数，可以重载
     virtual double GetValue(int bufferIndex, int index) { return 0.0; }
 };
@@ -281,5 +281,47 @@ public:
     void GetValues(int number, double &bufferValue[])
     {
         CopyBuffer(m_handle, 0, 1, number, bufferValue);
+    }
+};
+
+// 移动平均线类
+class CALMA : public CIndicator
+{
+private:
+    int m_almaValue;
+    int m_sigma;
+    double m_offset;
+
+    double bufferValue[];
+
+protected:
+    int CreateHandle() override
+    {
+        ArraySetAsSeries(bufferValue, true);
+
+        int handle = iCustom(m_symbol, m_timeFrame, "Wait_Indicators\\alma_v2", m_timeFrame, PRICE_CLOSE, m_almaValue, m_sigma, m_offset);
+
+        if (handle == INVALID_HANDLE)
+        {
+            //--- 叙述失败和输出错误代码
+            PrintFormat("Failed to create handle of the iMA indicator for the symbol %s/%s, error code %d",
+                        m_symbol,
+                        EnumToString(m_timeFrame),
+                        GetLastError());
+            //--- 指标提前停止
+            return INVALID_HANDLE;
+        }
+
+        return handle;
+    }
+
+public:
+    CALMA(string symbol, ENUM_TIMEFRAMES timeFrame, int almaValue, int sigma, double offset)
+        : CIndicator(symbol, timeFrame), m_almaValue(almaValue), m_sigma(sigma), m_offset(offset) {};
+
+    double GetValue(int index) override
+    {
+        CopyBuffer(m_handle, 0, index, 1, bufferValue);
+        return bufferValue[0];
     }
 };
