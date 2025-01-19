@@ -3,16 +3,19 @@
 #include "include/CTools.mqh"
 // 基本参数
 input group "==============基本参数==============";
-input ENUM_TIMEFRAMES InpTimeframe = PERIOD_H1; // 周期
-input int InpBaseMagicNumber = 542824;          // 基础魔术号
-input double LotSize = 0.01;                    // 交易手数
-input int ALMAValue = 50;                       // ALMA指标值
-input int ALMASigma = 6;                        // ALMASigam
-input double ALMAOffset = 0.85;                 // ALMAOffset
-input int EMAFast = 5;                          // 慢速EMA
-input int EMASlow = 10;                         // 快速EMA
-input bool InpUseTrailingStop = true;           // 是否使用移动止损
-input int InpTrailingStop = 5;                  // 移动止损点数
+input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 周期
+input int InpBaseMagicNumber = 48651;                // 基础魔术号
+input double LotSize = 0.01;                         // 交易手数
+input int ALMAValue = 50;                            // ALMA指标值
+input double ALMASigma = 6.0;                        // ALMASigam
+input double ALMAOffset = 0.85;                      // ALMAOffset
+input int EMAFast = 5;                               // 慢速EMA
+input int EMASlow = 10;                              // 快速EMA
+input bool InpUseTrailingStop = true;                // 是否使用移动止损
+input int InpTrailingStop = 5;                       // 移动止损点数
+input string InpSymbols = "USDJPYm";                 // 交易品种
+input bool InpLong = false;                          // 做多
+input bool InpShort = true;                          // 做空
 
 // 在hk50指数上测试无法盈利
 class CALMATrendFollowing : public CStrategy
@@ -53,6 +56,9 @@ public:
             Print("Failed to initialize ALMA indicator for ", m_Symbol);
             return false;
         }
+        ChartIndicatorAdd(0, 0, m_ALMA.GetHandle());
+        ChartIndicatorAdd(0, 0, m_EMAFast.GetHandle());
+        ChartIndicatorAdd(0, 0, m_EMASlow.GetHandle());
         return true;
     };
 
@@ -79,6 +85,7 @@ public:
 
         if (!m_Tools.IsNewBar(m_Timeframe))
             return;
+
         if (InpUseTrailingStop)
             m_Tools.ApplyTrailingStopByHighLow(InpTrailingStop, m_MagicNumber);
 
@@ -87,13 +94,26 @@ public:
         if (signal == BuySignal && m_Tools.GetPositionCount(m_MagicNumber, POSITION_TYPE_BUY) == 0)
         {
             m_Tools.CloseAllPositions(m_MagicNumber, POSITION_TYPE_SELL);
-            m_Trade.Buy(LotSize);
+            if (InpLong)
+                m_Trade.Buy(LotSize);
         }
         else if (signal == SellSignal && m_Tools.GetPositionCount(m_MagicNumber, POSITION_TYPE_SELL) == 0)
         {
             m_Tools.CloseAllPositions(m_MagicNumber, POSITION_TYPE_BUY);
-            m_Trade.Sell(LotSize);
+            if (InpShort)
+                m_Trade.Sell(LotSize);
         }
+    };
+
+    void OnDeinit(const int reason)
+    {
+        IndicatorRelease(m_EMAFast.GetHandle());
+        IndicatorRelease(m_EMASlow.GetHandle());
+        IndicatorRelease(m_ALMA.GetHandle());
+        delete m_EMAFast;
+        delete m_EMASlow;
+        delete m_ALMA;
+        delete m_Tools;
     };
 };
 CALMATrendFollowing *g_Strategy;
@@ -102,7 +122,8 @@ CALMATrendFollowing *g_Strategy;
 
 int OnInit()
 {
-    g_Strategy = new CALMATrendFollowing(_Symbol, InpTimeframe, InpBaseMagicNumber);
+
+    g_Strategy = new CALMATrendFollowing(InpSymbols, InpTimeframe, InpBaseMagicNumber);
     if (g_Strategy.Initialize())
     {
         Print("Strategy initialized successfully!");

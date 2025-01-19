@@ -284,12 +284,24 @@ public:
     }
 };
 
+enum ENUM_PRICE_DERIVATIVE
+{
+    Open,     // Open
+    High,     // High
+    Low,      // Low
+    Close,    // Close
+    Median,   // Median, (h+l)/2
+    Mid,      // Mid, (o+c)/2
+    Typical,  // Typical, (h+l+c)/3
+    Weighted, // Weighted, (h+l+c+c)/4
+    Average   // Average, (o+h+l+c)/4
+};
 // 移动平均线类
 class CALMA : public CIndicator
 {
 private:
     int m_almaValue;
-    int m_sigma;
+    double m_sigma;
     double m_offset;
 
     double bufferValue[];
@@ -300,6 +312,7 @@ protected:
         ArraySetAsSeries(bufferValue, true);
 
         int handle = iCustom(m_symbol, m_timeFrame, "Wait_Indicators\\alma_v2", m_timeFrame, PRICE_CLOSE, m_almaValue, m_sigma, m_offset);
+        // int handle = iCustom(m_symbol, m_timeFrame, "Wait_Indicators\\ALMA_v1", m_almaValue, m_sigma, m_offset, Close);
 
         if (handle == INVALID_HANDLE)
         {
@@ -316,7 +329,7 @@ protected:
     }
 
 public:
-    CALMA(string symbol, ENUM_TIMEFRAMES timeFrame, int almaValue, int sigma, double offset)
+    CALMA(string symbol, ENUM_TIMEFRAMES timeFrame, int almaValue, double sigma, double offset)
         : CIndicator(symbol, timeFrame), m_almaValue(almaValue), m_sigma(sigma), m_offset(offset) {};
 
     double GetValue(int index) override

@@ -1,7 +1,6 @@
 #include "include/CStrategy.mqh"
 #include "include/CIndicators.mqh"
 #include "include/CTools.mqh"
-
 input group "==============基本参数==============";
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 1小时周期
 input int InpBaseMagicNumber = 42451;                // 基础魔术号
