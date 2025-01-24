@@ -338,3 +338,28 @@ public:
         return bufferValue[0];
     }
 };
+class CMACD : public CIndicator
+{
+private:
+    int m_fastEMA;
+    int m_slowEMA;
+    int m_signalSMA;
+    double bufferValue[];
+
+protected:
+    int CreateHandle() override
+    {
+        ArraySetAsSeries(bufferValue, true);
+        return iMACD(m_symbol, m_timeFrame, m_fastEMA, m_slowEMA, m_signalSMA, PRICE_CLOSE);
+    }
+
+public:
+    CMACD(string symbol, ENUM_TIMEFRAMES timeFrame, int fastEMA, int slowEMA, int signalSMA)
+        : CIndicator(symbol, timeFrame), m_fastEMA(fastEMA), m_slowEMA(slowEMA), m_signalSMA(signalSMA) {};
+
+    double GetValue(int bufferIndex, int index) override
+    {
+        CopyBuffer(m_handle, bufferIndex, index, 1, bufferValue);
+        return bufferValue[0];
+    }
+};
