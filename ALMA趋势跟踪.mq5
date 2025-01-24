@@ -4,17 +4,16 @@
 // 基本参数
 input group "==============基本参数==============";
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 周期
-input int InpBaseMagicNumber = 48651;                // 基础魔术号
-input double LotSize = 0.01;                         // 交易手数
+input int InpBaseMagicNumber;                        // 基础魔术号
+input double LotSize = 0.1;                          // 交易手数
 input int ALMAValue = 50;                            // ALMA指标值
 input double ALMASigma = 6.0;                        // ALMASigam
 input double ALMAOffset = 0.85;                      // ALMAOffset
 input int EMAFast = 5;                               // 慢速EMA
 input int EMASlow = 10;                              // 快速EMA
 input bool InpUseTrailingStop = true;                // 是否使用移动止损
-input int InpTrailingStop = 5;                       // 移动止损点数
-input string InpSymbols = "USDJPYm";                 // 交易品种
-input bool InpLong = false;                          // 做多
+input int InpTrailingStop = 6;                       // 移动止损点数
+input bool InpLong = true;                           // 做多
 input bool InpShort = true;                          // 做空
 
 // 在hk50指数上测试无法盈利
@@ -123,14 +122,11 @@ CALMATrendFollowing *g_Strategy;
 int OnInit()
 {
 
-    g_Strategy = new CALMATrendFollowing(InpSymbols, InpTimeframe, InpBaseMagicNumber);
-    if (g_Strategy.Initialize())
-    {
-        Print("Strategy initialized successfully!");
-    }
-    else
+    g_Strategy = new CALMATrendFollowing(_Symbol, InpTimeframe, InpBaseMagicNumber);
+    if (!g_Strategy.Initialize())
     {
         Print("Failed to initialize strategy!");
+        return INIT_FAILED;
     }
     return (INIT_SUCCEEDED);
 }
