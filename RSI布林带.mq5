@@ -160,13 +160,10 @@ CRSIBollingerBands *g_Strategy;
 int OnInit()
 {
     g_Strategy = new CRSIBollingerBands(_Symbol, InpTimeframe, InpBaseMagicNumber, InpRISValue, InpBBValue, InpBBDeviation);
-    if (g_Strategy.Initialize())
-    {
-        Print("Strategy initialized successfully!");
-    }
-    else
+    if (!g_Strategy.Initialize())
     {
         Print("Failed to initialize strategy!");
+        return (INIT_FAILED);
     }
     return (INIT_SUCCEEDED);
 }
