@@ -1,28 +1,25 @@
 #include "include/CStrategy.mqh"
 #include "include/CIndicators.mqh"
 #include "include/CTools.mqh"
-// 基本参数
+// 基本参数  US500 DAY 最佳
 input group "==============基本参数==============";
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 周期
 input int InpBaseMagicNumber;                        // 基础魔术号
 input double InpLotSize = 0.1;                       // 交易手数
-input int InpALMAValue = 50;                         // ALMA指标值
+input int InpALMAValue = 40;                         // ALMA指标值
 input double InpALMASigma = 6.0;                     // ALMASigam
-input double InpALMAOffset = 0.85;                   // ALMAOffset
-input int InpEMAFast = 5;                            // 慢速EMA
-input int InpEMASlow = 10;
-
-input group "==============均线发散==============";
-input bool InpUseDiverge = false; // 是否使用均线发散
-input int InpDivergeBars = 4;     // 发散K线数量
+input double InpALMAOffset = 0.4;                    // ALMAOffset
+input int InpEMAFast = 7;                            // 慢速EMA
+input int InpEMASlow = 10;                           // 快速EMA
 
 input group "==============移动止损==============";
 input bool InpUseTrailingStop = true; // 是否使用移动止损
-input int InpTrailingStop = 6;        // 移动止损点数
+input int InpTrailingStop = 8;        // 移动止损点数
 input bool InpLong = true;            // 做多
 input bool InpShort = true;           // 做空
 
 // 在hk50指数上测试无法盈利
+// US500  40 6.0 0.4 7 10 8
 class CALMATrendFollowing : public CStrategy
 {
 private:
@@ -82,33 +79,15 @@ public:
     // 自定义信号逻辑
     SignalType TradeSignal() override
     {
-        bool longDiverge = true;
-        bool shortDiverge = true;
-        // 均线发散
-        if (InpUseDiverge)
-        {
-            for (int i = 1; i <= InpDivergeBars; i++)
-            {
-                if (!(m_EMAFast.GetValue(i) > m_EMAFast.GetValue(i + 1) && m_EMASlow.GetValue(i) > m_EMASlow.GetValue(i + 1)))
-                {
-                    longDiverge = false;
-                }
-
-                if (!(m_EMAFast.GetValue(i) < m_EMAFast.GetValue(i + 1) && m_EMASlow.GetValue(i) < m_EMASlow.GetValue(i + 1)))
-                {
-                    shortDiverge = false;
-                }
-            }
-        }
 
         // 多头排列且满足均线发散条件
-        if (longDiverge && m_EMAFast.GetValue(1) > m_EMASlow.GetValue(1) && m_EMASlow.GetValue(1) > m_ALMA.GetValue(1))
+        if (m_EMAFast.GetValue(1) > m_EMASlow.GetValue(1) && m_EMASlow.GetValue(1) > m_ALMA.GetValue(1))
         {
             return BuySignal;
         }
 
         // 空头排列且满足均线发散条件
-        if (shortDiverge && m_EMAFast.GetValue(1) < m_EMASlow.GetValue(1) && m_EMASlow.GetValue(1) < m_ALMA.GetValue(1))
+        if (m_EMAFast.GetValue(1) < m_EMASlow.GetValue(1) && m_EMASlow.GetValue(1) < m_ALMA.GetValue(1))
         {
             return SellSignal;
         }
