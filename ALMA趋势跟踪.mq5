@@ -11,7 +11,6 @@ input double InpALMASigma = 6.0;                     // ALMASigam
 input double InpALMAOffset = 0.4;                    // ALMAOffset
 input int InpEMAFast = 7;                            // 慢速EMA
 input int InpEMASlow = 10;                           // 快速EMA
-input int InpStopLossBar = 8;                        // 止损点数
 input group "==============移动止损==============";
 input bool InpUseTrailingStop = true; // 是否使用移动止损
 input int InpTrailingStop = 8;        // 移动止损点数
