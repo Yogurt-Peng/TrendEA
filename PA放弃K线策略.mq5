@@ -47,70 +47,71 @@ public:
         return true;
     };
 
-    // 自定义信号逻辑
+    // 检查最近5个柱子的幅度是否超过最大幅度的75%
+    bool CheckRecentBars(const MqlRates &rates[], double maxAmplitude, int index)
+    {
+        // 遍历最近5个柱子
+        for (int i = 1; i <= 5; i++)
+        {
+            // 如果当前柱子的收盘价大于开盘价，而第i个柱子的收盘价小于开盘价，或者当前柱子的收盘价小于开盘价，而第i个柱子的收盘价大于开盘价
+            if ((rates[index].close > rates[index].open && rates[i].close < rates[i].open) ||
+                (rates[index].close < rates[index].open && rates[i].close > rates[i].open))
+            {
+                // 如果第i个柱子的幅度大于最大幅度的75%
+                if (MathAbs(rates[i].close - rates[i].open) >= maxAmplitude * 0.75)
+                {
+                    // 返回true
+                    return true;
+                }
+            }
+        }
+        // 如果没有找到符合条件的柱子，返回false
+        return false;
+    }
+
+    // 获取交易信号
     SignalType TradeSignal() override
     {
+        // 定义一个MqlRates类型的数组
         MqlRates rates[];
+        // 将数组设置为系列
         ArraySetAsSeries(rates, true);
+        // 复制指定数量的数据到数组中
         CopyRates(m_Symbol, m_Timeframe, 1, InpCalculateCount, rates);
 
-        // 20根K中最后一根K线的最高价-最低价的绝对值是这20根K线的最大振幅
-        bool isMaximumAmplitude = true;
-        double maxAmplitude = 0;
+        // 获取第一个数据的高点和低点的差值
+        double maxAmplitude = MathAbs(rates[0].high - rates[0].low);
+        // 遍历数组中的数据
         for (int i = 1; i < InpCalculateCount; i++)
         {
-            // 计算最后一根K线的振幅
-            double LastBarAmplitude = MathAbs(rates[0].high - rates[0].low);
+            // 获取当前数据的高点和低点的差值
             double BarAmplitude = MathAbs(rates[i].high - rates[i].low);
-            if (LastBarAmplitude < BarAmplitude)
+            // 如果当前数据的差值大于最大差值，则返回无信号
+            if (maxAmplitude < BarAmplitude)
             {
                 return NoSignal;
             }
-            maxAmplitude = BarAmplitude;
-        }
-        // 如果最近5根K线的振幅大于最大振幅的75%，且方向相反，则不交易
-        if (rates[0].close > rates[0].open)
-        {
-            for (int i = 1; i <= 5; i++)
-            {
-                if (rates[i].close < rates[i].open)
-                {
-                    if (MathAbs(rates[i].close - rates[i].open) >= maxAmplitude * 0.75)
-                    {
-                        return NoSignal;
-                    }
-                }
-            }
         }
 
-        if (rates[0].close < rates[0].open)
+        // 检查最近的数据是否满足条件，如果满足则返回无信号
+        if (CheckRecentBars(rates, maxAmplitude, 0))
         {
-            for (int i = 1; i <= 5; i++)
-            {
-                if (rates[i].close > rates[i].open)
-                {
-                    if (MathAbs(rates[i].close - rates[i].open) >= maxAmplitude * 0.75)
-                    {
-                        return NoSignal;
-                    }
-                }
-            }
+            return NoSignal;
         }
 
         // 多头排列
-        if (m_EMAFast.GetValue(1) > m_EMASlow.GetValue(1) && isMaximumAmplitude && rates[0].close > rates[0].open)
+        if (m_EMAFast.GetValue(1) > m_EMASlow.GetValue(1) && rates[0].close > rates[0].open)
         {
             return BuySignal;
         }
         // 空头排列
-        if (m_EMAFast.GetValue(1) < m_EMASlow.GetValue(1) && isMaximumAmplitude && rates[0].close < rates[0].open)
+        if (m_EMAFast.GetValue(1) < m_EMASlow.GetValue(1) && rates[0].close < rates[0].open)
         {
             return SellSignal;
         }
 
         return NoSignal;
-    };
-
+    }
     void ExecuteTrade() override
     {
 
