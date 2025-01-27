@@ -103,9 +103,6 @@ public:
         if (InpUseTrailingStop)
             m_Tools.ApplyTrailingStopByHighLow(InpTrailingStop, m_MagicNumber);
 
-        double high = iHigh(m_Symbol, PERIOD_CURRENT, iHighest(m_Symbol, PERIOD_CURRENT, MODE_HIGH, InpStopLossBar, 1));
-        double low = iLow(m_Symbol, PERIOD_CURRENT, iLowest(m_Symbol, PERIOD_CURRENT, MODE_LOW, InpStopLossBar, 1));
-
         SignalType signal = TradeSignal();
 
         if (signal == BuySignal && m_Tools.GetPositionCount(m_MagicNumber, POSITION_TYPE_BUY) == 0)
