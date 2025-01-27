@@ -11,7 +11,7 @@ input double InpALMASigma = 6.0;                     // ALMASigam
 input double InpALMAOffset = 0.4;                    // ALMAOffset
 input int InpEMAFast = 7;                            // 慢速EMA
 input int InpEMASlow = 10;                           // 快速EMA
-
+input int InpStopLossBar = 8;                        // 止损点数
 input group "==============移动止损==============";
 input bool InpUseTrailingStop = true; // 是否使用移动止损
 input int InpTrailingStop = 8;        // 移动止损点数
@@ -103,6 +103,9 @@ public:
 
         if (InpUseTrailingStop)
             m_Tools.ApplyTrailingStopByHighLow(InpTrailingStop, m_MagicNumber);
+
+        double high = iHigh(m_Symbol, PERIOD_CURRENT, iHighest(m_Symbol, PERIOD_CURRENT, MODE_HIGH, InpStopLossBar, 1));
+        double low = iLow(m_Symbol, PERIOD_CURRENT, iLowest(m_Symbol, PERIOD_CURRENT, MODE_LOW, InpStopLossBar, 1));
 
         SignalType signal = TradeSignal();
 
