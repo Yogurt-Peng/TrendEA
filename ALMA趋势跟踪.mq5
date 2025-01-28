@@ -46,35 +46,26 @@ public:
         // 初始化EMAFast指标
         if (!m_EMAFast.Initialize())
         {
-            // 如果初始化失败，打印错误信息
             Print("Failed to initialize EMAFast indicator for ", m_Symbol);
             return false;
         }
         // 初始化EMASlow指标
         if (!m_EMASlow.Initialize())
         {
-            // 如果初始化失败，打印错误信息
             Print("Failed to initialize EMASlow indicator for ", m_Symbol);
             return false;
         }
-        // 初始化ALMA指标
         if (!m_ALMA.Initialize())
         {
-            // 如果初始化失败，打印错误信息
             Print("Failed to initialize ALMA indicator for ", m_Symbol);
             return false;
         }
-        // 将ALMA指标添加到图表中
         ChartIndicatorAdd(0, 0, m_ALMA.GetHandle());
-        // 将EMAFast指标添加到图表中
         ChartIndicatorAdd(0, 0, m_EMAFast.GetHandle());
-        // 将EMASlow指标添加到图表中
         ChartIndicatorAdd(0, 0, m_EMASlow.GetHandle());
-        // 返回true表示初始化成功
         return true;
     };
 
-    // 自定义信号逻辑
     // 自定义信号逻辑
     SignalType TradeSignal() override
     {
@@ -149,7 +140,7 @@ void OnTick()
 {
     g_Strategy.OnTick();
 }
- 
+
 void OnDeinit(const int reason)
 {
     g_Strategy.OnDeinit(reason);

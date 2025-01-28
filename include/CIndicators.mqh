@@ -2,23 +2,28 @@
 class CIndicator
 {
 protected:
-    int m_handle;
-    string m_symbol;
-    ENUM_TIMEFRAMES m_timeFrame;
+    int m_handle;                // 指示器句柄
+    string m_symbol;             // 指示器符号
+    ENUM_TIMEFRAMES m_timeFrame; // 指示器时间框架
 
+    // 创建指示器句柄的纯虚函数
     virtual int CreateHandle() = 0;
-    virtual void SetupBuffers() {}
+    // 设置缓冲区的虚函数，默认为空实现
+    virtual void SetupBuffers() {};
 
 public:
+    // 构造函数，初始化指示器符号和时间框架
     CIndicator(string symbol, ENUM_TIMEFRAMES timeFrame)
         : m_handle(INVALID_HANDLE), m_symbol(symbol), m_timeFrame(timeFrame) {}
 
+    // 析构函数，释放指示器句柄
     virtual ~CIndicator()
     {
         if (m_handle != INVALID_HANDLE)
             IndicatorRelease(m_handle);
     }
 
+    // 初始化指示器，创建句柄并设置缓冲区
     bool Initialize()
     {
         m_handle = CreateHandle();
@@ -31,9 +36,12 @@ public:
         return false;
     }
 
+    // 获取指示器名称的纯虚函数
     virtual string GetName() const = 0;
+    // 获取指示器句柄
     int GetHandle() const { return m_handle; }
 
+    // 获取指定索引和缓冲区的值
     double GetValue(int index, int bufferIndex = 0, int count = 1)
     {
         double buffer[];
@@ -43,6 +51,7 @@ public:
         return 0.0;
     }
 
+    // 获取指定缓冲区、起始索引和计数的值
     bool GetValues(int bufferIndex, int start, int count, double &result[])
     {
         ArraySetAsSeries(result, true);
@@ -53,6 +62,32 @@ public:
 //+------------------------------------------------------------------+
 //|                                                          RSI     |
 //+------------------------------------------------------------------+
+/**
+ * @class CRSI
+ * @brief RSI（相对强弱指数）指标类，用于计算股票或其他金融产品的相对强弱指数。
+ *
+ * CRSI类继承自CIndicator类，用于计算和返回相对强弱指数。该类的主要功能是计算并返回一个特定时间段内股票或其他金融产品的相对强弱指数。
+ *
+ * 核心功能：
+ * - 计算相对强弱指数
+ * - 返回相对强弱指数的名称
+ *
+ * 构造函数参数：
+ * - symbol: 股票或其他金融产品的代码
+ * - tf: 时间框架，例如日、周、月等
+ * - period: 计算相对强弱指数的时间段
+ * - applied: 应用的价格类型，默认为收盘价
+ *
+ * 使用示例：
+ * @code
+ * CRSI rsi("AAPL", ENUM_TIMEFRAMES::DAILY, 14);
+ * string name = rsi.GetName();
+ * @endcode
+ *
+ * 注意事项：
+ * - 构造函数参数period必须大于0
+ * - 构造函数参数applied必须是有效的价格类型
+ */
 class CRSI : public CIndicator
 {
 protected:
@@ -104,14 +139,47 @@ public:
 //+------------------------------------------------------------------+
 //|                                                           MA     |
 //+------------------------------------------------------------------+
+/**
+ * @class CMA
+ * @brief CMA类用于计算移动平均线（Moving Average）指标。
+ *
+ * CMA类继承自CIndicator类，用于计算和返回移动平均线指标。该类支持多种移动平均方法，包括简单移动平均（SMA）、指数移动平均（EMA）等。
+ *
+ * 核心功能：
+ * - 计算移动平均线指标
+ * - 支持多种移动平均方法
+ * - 支持不同的应用价格
+ *
+ * 使用示例：
+ * @code
+ * CMA ma("AAPL", ENUM_TIMEFRAMES::DAILY, 50, ENUM_MA_METHOD::EMA);
+ * @endcode
+ *
+ * 构造函数参数：
+ * - symbol: 股票代码或交易品种
+ * - tf: 时间框架，例如日、周、月等
+ * - period: 移动平均线的周期
+ * - method: 移动平均方法，例如简单移动平均（SMA）、指数移动平均（EMA）等
+ * - shift: 移动平均线的偏移量，默认为0
+ * - applied: 应用价格，例如收盘价、开盘价等，默认为收盘价
+ *
+ * 注意事项：
+ * - 构造函数中的参数必须符合相应的类型和范围要求
+ * - 使用该类时，需要确保已经正确初始化了CIndicator基类
+ */
 class CMA : public CIndicator
 {
+    // 移动平均线周期
     int m_period;
+    // 移动平均线方法
     ENUM_MA_METHOD m_method;
+    // 移动平均线位移
     int m_shift;
+    // 移动平均线应用价格
     ENUM_APPLIED_PRICE m_applied;
 
 protected:
+    // 创建移动平均线句柄
     int CreateHandle()
     {
         return iMA(m_symbol, m_timeFrame, m_period,
@@ -119,12 +187,14 @@ protected:
     }
 
 public:
+    // 构造函数
     CMA(string symbol, ENUM_TIMEFRAMES tf, int period,
         ENUM_MA_METHOD method, int shift = 0,
         ENUM_APPLIED_PRICE applied = PRICE_CLOSE)
         : CIndicator(symbol, tf), m_period(period),
           m_method(method), m_shift(shift), m_applied(applied) {}
 
+    // 获取指标名称
     string GetName() const { return "MA"; }
 };
 
@@ -168,6 +238,17 @@ public:
     double Low(int index) const { return m_low[index]; }
     double Close(int index) const { return m_close[index]; }
 };
+
+// ha.Refresh(100);  // 参数表示要获取的数据数量
+// // 4. 获取最新价格数据
+// double currentHA_Open  = ha.Open(0);   // 最新Heiken Ashi开盘价
+// double currentHA_High  = ha.High(0);   // 最新Heiken Ashi最高价
+// double currentHA_Low   = ha.Low(0);    // 最新Heiken Ashi最低价
+// double currentHA_Close = ha.Close(0);  // 最新Heiken Ashi收盘价
+// // 5. 获取历史数据（前一根K线）
+// double prevHA_Open  = ha.Open(1);
+// double prevHA_Close = ha.Close(1);
+
 //+------------------------------------------------------------------+
 //|                                                          ATR     |
 //+------------------------------------------------------------------+
