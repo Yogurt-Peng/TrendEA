@@ -1,3 +1,4 @@
+
 class CIndicator
 {
 protected:
@@ -5,361 +6,359 @@ protected:
     string m_symbol;
     ENUM_TIMEFRAMES m_timeFrame;
 
-    virtual int CreateHandle() = 0; // 纯虚方法，由子类实现
+    virtual int CreateHandle() = 0;
+    virtual void SetupBuffers() {}
 
 public:
-    CIndicator(string symbol, ENUM_TIMEFRAMES timeFrame) : m_handle(INVALID_HANDLE), m_symbol(symbol), m_timeFrame(timeFrame) {}
+    CIndicator(string symbol, ENUM_TIMEFRAMES timeFrame)
+        : m_handle(INVALID_HANDLE), m_symbol(symbol), m_timeFrame(timeFrame) {}
+
     virtual ~CIndicator()
     {
         if (m_handle != INVALID_HANDLE)
-        {
             IndicatorRelease(m_handle);
-        }
     }
 
     bool Initialize()
     {
         m_handle = CreateHandle();
-        return (m_handle != INVALID_HANDLE);
+        if (m_handle != INVALID_HANDLE)
+        {
+            SetupBuffers();
+            return true;
+        }
+        Print("Failed to create handle for ", GetName());
+        return false;
     }
-    int GetHandle() { return m_handle; }
 
-    // 基类中声明 GetValue 为虚函数（派生类可以重载）
-    virtual double GetValue(int index);
-    // 如果需要两个参数，可以重载
-    virtual double GetValue(int bufferIndex, int index) { return 0.0; }
+    virtual string GetName() const = 0;
+    int GetHandle() const { return m_handle; }
+
+    double GetValue(int index, int bufferIndex = 0, int count = 1)
+    {
+        double buffer[];
+        ArraySetAsSeries(buffer, true);
+        if (CopyBuffer(m_handle, bufferIndex, index, count, buffer) > 0)
+            return buffer[0];
+        return 0.0;
+    }
+
+    bool GetValues(int bufferIndex, int start, int count, double &result[])
+    {
+        ArraySetAsSeries(result, true);
+        return CopyBuffer(m_handle, bufferIndex, start, count, result) == count;
+    }
 };
 
-// RSI 指标类
+//+------------------------------------------------------------------+
+//|                                                          RSI     |
+//+------------------------------------------------------------------+
 class CRSI : public CIndicator
 {
-private:
-    int m_value;
-    double bufferValue[];
-
 protected:
-    int CreateHandle() override
+    int m_period;
+    ENUM_APPLIED_PRICE m_applied;
+
+    int CreateHandle()
     {
-        ArraySetAsSeries(bufferValue, true);
-        return iRSI(m_symbol, m_timeFrame, m_value, PRICE_CLOSE);
+        return iRSI(m_symbol, m_timeFrame, m_period, m_applied);
     }
 
 public:
-    CRSI(string symbol, ENUM_TIMEFRAMES timeFrame, int rsiValue)
-        : CIndicator(symbol, timeFrame), m_value(rsiValue) {}
+    CRSI(string symbol, ENUM_TIMEFRAMES tf, int period,
+         ENUM_APPLIED_PRICE applied = PRICE_CLOSE)
+        : CIndicator(symbol, tf), m_period(period), m_applied(applied) {}
 
-    double GetValue(int index) override
-    {
-        CopyBuffer(m_handle, 0, index, 1, bufferValue);
-        return bufferValue[0];
-    }
+    string GetName() const { return "RSI"; }
 };
 
-// 布林带指标类
-class CBollingerBands : public CIndicator
+//+------------------------------------------------------------------+
+//|                                                     Bollinger    |
+//+------------------------------------------------------------------+
+class CBollinger : public CIndicator
 {
-private:
-    int m_value;
-    int m_deviation;
-    double bufferValue[];
+    int m_period;
+    double m_deviation;
+    int m_shift;
 
 protected:
-    int CreateHandle() override
+    int CreateHandle()
     {
-        ArraySetAsSeries(bufferValue, true);
-        return iBands(m_symbol, m_timeFrame, m_value, 0, m_deviation, PRICE_CLOSE);
+        return iBands(m_symbol, m_timeFrame, m_period,
+                      m_shift, m_deviation, PRICE_CLOSE);
     }
 
 public:
-    CBollingerBands(string symbol, ENUM_TIMEFRAMES timeFrame, int bbValue, int bbDeviation)
-        : CIndicator(symbol, timeFrame), m_value(bbValue), m_deviation(bbDeviation) {}
+    CBollinger(string symbol, ENUM_TIMEFRAMES tf, int period,
+               double dev, int shift = 0)
+        : CIndicator(symbol, tf), m_period(period),
+          m_deviation(dev), m_shift(shift) {}
 
-    double GetValue(int bufferIndex, int index) override
-    {
-        CopyBuffer(m_handle, bufferIndex, index, 1, bufferValue);
-        return bufferValue[0];
-    }
+    string GetName() const { return "Bollinger"; }
+
+    double Upper(int index) { return GetValue(0, index); }
+    double Middle(int index) { return GetValue(1, index); }
+    double Lower(int index) { return GetValue(2, index); }
 };
 
-// 移动平均线类
+//+------------------------------------------------------------------+
+//|                                                           MA     |
+//+------------------------------------------------------------------+
 class CMA : public CIndicator
 {
-private:
-    int m_value;
+    int m_period;
     ENUM_MA_METHOD m_method;
-    double bufferValue[];
+    int m_shift;
+    ENUM_APPLIED_PRICE m_applied;
 
 protected:
-    int CreateHandle() override
+    int CreateHandle()
     {
-        ArraySetAsSeries(bufferValue, true);
-
-        int handle = iMA(m_symbol, m_timeFrame, m_value, 0, m_method, PRICE_CLOSE);
-        if (handle == INVALID_HANDLE)
-        {
-            //--- 叙述失败和输出错误代码
-            PrintFormat("Failed to create handle of the iMA indicator for the symbol %s/%s, error code %d",
-                        m_symbol,
-                        EnumToString(m_timeFrame),
-                        GetLastError());
-            //--- 指标提前停止
-            return INVALID_HANDLE;
-        }
-
-        return handle;
+        return iMA(m_symbol, m_timeFrame, m_period,
+                   m_shift, m_method, m_applied);
     }
 
 public:
-    CMA(string symbol, ENUM_TIMEFRAMES timeFrame, int maValue, ENUM_MA_METHOD maMethod)
-        : CIndicator(symbol, timeFrame), m_value(maValue), m_method(maMethod) {};
+    CMA(string symbol, ENUM_TIMEFRAMES tf, int period,
+        ENUM_MA_METHOD method, int shift = 0,
+        ENUM_APPLIED_PRICE applied = PRICE_CLOSE)
+        : CIndicator(symbol, tf), m_period(period),
+          m_method(method), m_shift(shift), m_applied(applied) {}
 
-    double GetValue(int index) override
-    {
-        CopyBuffer(m_handle, 0, index, 1, bufferValue);
-        return bufferValue[0];
-    }
+    string GetName() const { return "MA"; }
 };
 
-// ATR 指标类
+//+------------------------------------------------------------------+
+//|                                                     Heiken Ashi  |
+//+------------------------------------------------------------------+
+class CHeikenAshi : public CIndicator
+{
+    double m_open[], m_high[], m_low[], m_close[];
+
+protected:
+    int CreateHandle()
+    {
+        return iCustom(m_symbol, m_timeFrame, "Examples\\Heiken_Ashi");
+    }
+
+    void SetupBuffers()
+    {
+        ArraySetAsSeries(m_open, true);
+        ArraySetAsSeries(m_high, true);
+        ArraySetAsSeries(m_low, true);
+        ArraySetAsSeries(m_close, true);
+    }
+
+public:
+    CHeikenAshi(string symbol, ENUM_TIMEFRAMES tf)
+        : CIndicator(symbol, tf) {}
+
+    string GetName() const { return "HeikenAshi"; }
+
+    void Refresh(int count = 100)
+    {
+        CopyBuffer(m_handle, 0, 0, count, m_open);
+        CopyBuffer(m_handle, 1, 0, count, m_high);
+        CopyBuffer(m_handle, 2, 0, count, m_low);
+        CopyBuffer(m_handle, 3, 0, count, m_close);
+    }
+
+    double Open(int index) const { return m_open[index]; }
+    double High(int index) const { return m_high[index]; }
+    double Low(int index) const { return m_low[index]; }
+    double Close(int index) const { return m_close[index]; }
+};
+//+------------------------------------------------------------------+
+//|                                                          ATR     |
+//+------------------------------------------------------------------+
 class CATR : public CIndicator
 {
-private:
-    int m_atrValue;
-    double bufferValue[];
+    int m_period;
 
 protected:
-    int CreateHandle() override
+    int CreateHandle()
     {
-        ArraySetAsSeries(bufferValue, true);
-        return iATR(m_symbol, m_timeFrame, m_atrValue);
+        return iATR(m_symbol, m_timeFrame, m_period);
     }
 
 public:
-    CATR(string symbol, ENUM_TIMEFRAMES timeFrame, int atrValue)
-        : CIndicator(symbol, timeFrame), m_atrValue(atrValue) {}
+    CATR(string symbol, ENUM_TIMEFRAMES tf, int period)
+        : CIndicator(symbol, tf), m_period(period) {}
 
-    double GetValue(int index) override
-    {
-        CopyBuffer(m_handle, 0, index, 1, bufferValue);
-        return bufferValue[0];
-    }
+    string GetName() const { return "ATR"; }
 };
-// MFI 指标类
+
+//+------------------------------------------------------------------+
+//|                                                          MFI     |
+//+------------------------------------------------------------------+
 class CMFI : public CIndicator
 {
-private:
-    int m_value;
-    double bufferValue[];
-
-public:
-    CMFI(string symbol, ENUM_TIMEFRAMES timeFrame, int rsiValue) : CIndicator(symbol, timeFrame), m_value(rsiValue) {};
-
-    CMFI::~CMFI() {};
-
-    // 获取当前K线的前一个指标当前值
-    double GetValue(int index) override
-    {
-        CopyBuffer(m_handle, 0, index, 1, bufferValue);
-        return bufferValue[0];
-    };
-};
-
-class CHeiKenAshi : public CIndicator
-{
-private:
-    double bufferValue[];
+    int m_period;
+    ENUM_APPLIED_VOLUME m_volumeType;
 
 protected:
-    int CreateHandle() override
+    int CreateHandle()
     {
-        ArraySetAsSeries(bufferValue, true);
-        return iCustom(m_symbol, m_timeFrame, "Examples\\Heiken_Ashi.ex5");
+        return iMFI(m_symbol, m_timeFrame, m_period, m_volumeType);
     }
 
 public:
-    CHeiKenAshi(string symbol, ENUM_TIMEFRAMES timeFrame) : CIndicator(symbol, timeFrame) {};
-    ~CHeiKenAshi() {};
+    CMFI(string symbol, ENUM_TIMEFRAMES tf, int period,
+         ENUM_APPLIED_VOLUME volumeType = VOLUME_TICK)
+        : CIndicator(symbol, tf), m_period(period), m_volumeType(volumeType) {}
 
-    // Opne High Close Low
-    double GetValue(int index) override
-    {
-        CopyBuffer(m_handle, index, 1, 1, bufferValue);
-        return bufferValue[0];
-    }
-
-    void GetValues(int number, double &open[], double &high[], double &low[], double &close[])
-    {
-        for (int i = 0; i < number; i++)
-        {
-            CopyBuffer(m_handle, 0, i + 1, 1, bufferValue);
-            open[i] = bufferValue[0];
-            CopyBuffer(m_handle, 1, i + 1, 1, bufferValue);
-            high[i] = bufferValue[0];
-            CopyBuffer(m_handle, 2, i + 1, 1, bufferValue);
-            low[i] = bufferValue[0];
-            CopyBuffer(m_handle, 3, i + 1, 1, bufferValue);
-            close[i] = bufferValue[0];
-        }
-    }
+    string GetName() const { return "MFI"; }
 };
-// Pivots 类
-class CPivots : public CIndicator
+
+//+------------------------------------------------------------------+
+//|                                                      MACD        |
+//+------------------------------------------------------------------+
+class CMACD : public CIndicator
 {
-private:
-    int m_calcMode;
-    ENUM_TIMEFRAMES m_pivotTimeFrame;
-    double bufferValue[];
+    int m_fast;
+    int m_slow;
+    int m_signal;
 
 protected:
-    int CreateHandle() override
+    int CreateHandle()
     {
-        ArraySetAsSeries(bufferValue, true);
-        return iCustom(m_symbol, m_timeFrame, "Wait_Indicators\\All Pivot Points", m_pivotTimeFrame, m_calcMode);
+        return iMACD(m_symbol, m_timeFrame, m_fast, m_slow, m_signal, PRICE_CLOSE);
     }
 
 public:
-    CPivots(string symbol, ENUM_TIMEFRAMES timeFrame, ENUM_TIMEFRAMES pivotTimeFrame = PERIOD_D1, int calcMode = 0)
-        : CIndicator(symbol, timeFrame), m_calcMode(calcMode), m_pivotTimeFrame(pivotTimeFrame) {}
+    CMACD(string symbol, ENUM_TIMEFRAMES tf, int fast, int slow, int signal)
+        : CIndicator(symbol, tf), m_fast(fast), m_slow(slow), m_signal(signal) {}
 
-    double GetValue(int index) override
-    {
-        CopyBuffer(m_handle, index, 1, 1, bufferValue);
-        return bufferValue[0];
-    }
+    string GetName() const { return "MACD"; }
+
+    double Main(int index) { return GetValue(0, index); }
+    double Signal(int index) { return GetValue(1, index); }
+    double Histogram(int index) { return Main(index) - Signal(index); }
 };
 
+//+------------------------------------------------------------------+
+//|                                                     Donchian     |
+//+------------------------------------------------------------------+
 class CDonchian : public CIndicator
 {
-private:
-    int m_donchianValue;
-    double bufferValue[];
+    int m_period;
 
 protected:
-    int CreateHandle() override
+    int CreateHandle()
     {
-        ArraySetAsSeries(bufferValue, true);
-        return iCustom(m_symbol, m_timeFrame, "Wait_Indicators\\donchian_channel", m_donchianValue);
+        return iCustom(m_symbol, m_timeFrame, "Wait_Indicators\\donchian_channel", m_period);
     }
 
 public:
-    CDonchian(string symbol, ENUM_TIMEFRAMES timeFrame, int donchianValue) : CIndicator(symbol, timeFrame), m_donchianValue(donchianValue) {};
-    ~CDonchian() {};
+    CDonchian(string symbol, ENUM_TIMEFRAMES tf, int period)
+        : CIndicator(symbol, tf), m_period(period) {}
 
-    double GetValue(int index) override
-    {
-        CopyBuffer(m_handle, index, 1, 1, bufferValue);
+    string GetName() const { return "Donchian"; }
 
-        return bufferValue[0];
-    }
+    double Upper(int index) { return GetValue(0, index); }
+    double Lower(int index) { return GetValue(1, index); }
 };
 
-class CAMA : public CIndicator
-{
-private:
-    int m_donchianValue;
-    double m_bufferValue[];
-    int m_AMAValue;     // KAMA指标值
-    int m_fastEMAValue; // 快速EMA
-    int m_slowEMAValue; // 慢速EMA
-
-protected:
-    int CreateHandle() override
-    {
-        ArraySetAsSeries(m_bufferValue, true);
-        return iAMA(m_symbol, m_timeFrame, m_AMAValue, m_fastEMAValue, m_slowEMAValue, 0, PRICE_CLOSE);
-    }
-
-public:
-    CAMA(string symbol, ENUM_TIMEFRAMES timeFrame, int amaValue, int fastEMAValue, int slowEMAValue)
-        : CIndicator(symbol, timeFrame), m_AMAValue(amaValue), m_fastEMAValue(fastEMAValue), m_slowEMAValue(slowEMAValue) {}
-
-    double GetValue(int index) override
-    {
-        CopyBuffer(m_handle, 0, index, 1, m_bufferValue);
-        return m_bufferValue[0];
-    }
-    void GetValues(int number, double &bufferValue[])
-    {
-        CopyBuffer(m_handle, 0, 1, number, bufferValue);
-    }
-};
-
-enum ENUM_PRICE_DERIVATIVE
-{
-    Open,     // Open
-    High,     // High
-    Low,      // Low
-    Close,    // Close
-    Median,   // Median, (h+l)/2
-    Mid,      // Mid, (o+c)/2
-    Typical,  // Typical, (h+l+c)/3
-    Weighted, // Weighted, (h+l+c+c)/4
-    Average   // Average, (o+h+l+c)/4
-};
-// 移动平均线类
+//+------------------------------------------------------------------+
+//|                                                      ALMA        |
+//+------------------------------------------------------------------+
 class CALMA : public CIndicator
 {
-private:
-    int m_almaValue;
+    int m_period;
     double m_sigma;
     double m_offset;
 
-    double bufferValue[];
-
 protected:
-    int CreateHandle() override
+    int CreateHandle()
     {
-        ArraySetAsSeries(bufferValue, true);
-
-        int handle = iCustom(m_symbol, m_timeFrame, "Wait_Indicators\\alma_v2", m_timeFrame, PRICE_CLOSE, m_almaValue, m_sigma, m_offset);
-        // int handle = iCustom(m_symbol, m_timeFrame, "Wait_Indicators\\ALMA_v1", m_almaValue, m_sigma, m_offset, Close);
-
-        if (handle == INVALID_HANDLE)
-        {
-            //--- 叙述失败和输出错误代码
-            PrintFormat("Failed to create handle of the iMA indicator for the symbol %s/%s, error code %d",
-                        m_symbol,
-                        EnumToString(m_timeFrame),
-                        GetLastError());
-            //--- 指标提前停止
-            return INVALID_HANDLE;
-        }
-
-        return handle;
+        return iCustom(m_symbol, m_timeFrame, "Wait_Indicators\\alma_v2",
+                       m_period, m_sigma, m_offset, PRICE_CLOSE);
     }
 
 public:
-    CALMA(string symbol, ENUM_TIMEFRAMES timeFrame, int almaValue, double sigma, double offset)
-        : CIndicator(symbol, timeFrame), m_almaValue(almaValue), m_sigma(sigma), m_offset(offset) {};
+    CALMA(string symbol, ENUM_TIMEFRAMES tf, int period,
+          double sigma = 6.0, double offset = 0.85)
+        : CIndicator(symbol, tf), m_period(period),
+          m_sigma(sigma), m_offset(offset) {}
 
-    double GetValue(int index) override
-    {
-        CopyBuffer(m_handle, 0, index, 1, bufferValue);
-        return bufferValue[0];
-    }
+    string GetName() const { return "ALMA"; }
 };
-class CMACD : public CIndicator
+
+//+------------------------------------------------------------------+
+//|                                                      KAMA        |
+//+------------------------------------------------------------------+
+class CKAMA : public CIndicator
 {
-private:
-    int m_fastEMA;
-    int m_slowEMA;
-    int m_signalSMA;
-    double bufferValue[];
+    int m_period;
+    int m_fast;
+    int m_slow;
 
 protected:
-    int CreateHandle() override
+    int CreateHandle()
     {
-        ArraySetAsSeries(bufferValue, true);
-        return iMACD(m_symbol, m_timeFrame, m_fastEMA, m_slowEMA, m_signalSMA, PRICE_CLOSE);
+        return iAMA(m_symbol, m_timeFrame, m_period, m_fast, m_slow, 0, PRICE_CLOSE);
     }
 
 public:
-    CMACD(string symbol, ENUM_TIMEFRAMES timeFrame, int fastEMA, int slowEMA, int signalSMA)
-        : CIndicator(symbol, timeFrame), m_fastEMA(fastEMA), m_slowEMA(slowEMA), m_signalSMA(signalSMA) {};
+    CKAMA(string symbol, ENUM_TIMEFRAMES tf, int period,
+          int fast = 2, int slow = 30)
+        : CIndicator(symbol, tf), m_period(period),
+          m_fast(fast), m_slow(slow) {}
 
-    double GetValue(int bufferIndex, int index) override
-    {
-        CopyBuffer(m_handle, bufferIndex, index, 1, bufferValue);
-        return bufferValue[0];
-    }
+    string GetName() const { return "KAMA"; }
 };
+
+//+------------------------------------------------------------------+
+//|                                                      Pivot       |
+//+------------------------------------------------------------------+
+class CPivot : public CIndicator
+{
+    ENUM_TIMEFRAMES m_baseTF;
+    int m_mode;
+
+protected:
+    int CreateHandle()
+    {
+        return iCustom(m_symbol, m_timeFrame, "Wait_Indicators\\All Pivot Points",
+                       m_baseTF, m_mode);
+    }
+
+public:
+    CPivot(string symbol, ENUM_TIMEFRAMES tf,
+           ENUM_TIMEFRAMES baseTF = PERIOD_D1, int mode = 0)
+        : CIndicator(symbol, tf), m_baseTF(baseTF), m_mode(mode) {}
+
+    string GetName() const { return "Pivot"; }
+
+    double R3(int index) { return GetValue(0, index); }
+    double R2(int index) { return GetValue(1, index); }
+    double R1(int index) { return GetValue(2, index); }
+    double P(int index) { return GetValue(3, index); }
+    double S1(int index) { return GetValue(4, index); }
+    double S2(int index) { return GetValue(5, index); }
+    double S3(int index) { return GetValue(6, index); }
+};
+//+------------------------------------------------------------------+
+//|                                                      Usage       |
+//+------------------------------------------------------------------+
+/*
+void OnStart()
+{
+    CRSI rsi(_Symbol, PERIOD_H1, 14, PRICE_CLOSE);
+    if(!rsi.Initialize()) return;
+
+    Print("Current RSI: ", rsi.GetValue(0, 0));
+
+    CBollinger boll(_Symbol, PERIOD_H1, 20, 2.0);
+    if(!boll.Initialize()) return;
+
+    Print("Upper Band: ", boll.Upper(0));
+
+    CHeikenAshi ha(_Symbol, PERIOD_H1);
+    if(!ha.Initialize()) return;
+
+    ha.Refresh();
+    Print("HA Close: ", ha.Close(0));
+}
+*/
+//+------------------------------------------------------------------+

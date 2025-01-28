@@ -78,7 +78,6 @@ public:
     // 自定义信号逻辑
     SignalType TradeSignal() override
     {
-
         // 多头排列且满足均线发散条件
         if (m_EMAFast.GetValue(1) > m_EMASlow.GetValue(1) && m_EMASlow.GetValue(1) > m_ALMA.GetValue(1))
         {
@@ -150,7 +149,7 @@ void OnTick()
 {
     g_Strategy.OnTick();
 }
-
+ 
 void OnDeinit(const int reason)
 {
     g_Strategy.OnDeinit(reason);
