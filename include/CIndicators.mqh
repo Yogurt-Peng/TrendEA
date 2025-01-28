@@ -443,3 +443,33 @@ void OnStart()
 }
 */
 //+------------------------------------------------------------------+
+
+//+------------------------------------------------------------------+
+//|                                                      WilliamsR  |
+//+------------------------------------------------------------------+
+class CWilliamsR : public CIndicator
+{
+protected:
+    int m_period; // 通常为14周期
+
+    int CreateHandle()
+    {
+        return iWPR(m_symbol, m_timeFrame, 。);
+    }
+
+public:
+    CWilliamsR(string symbol, ENUM_TIMEFRAMES tf, int period = 14)
+        : CIndicator(symbol, tf), m_period(period) {}
+
+    string GetName() const { return "Williams%R"; }
+
+    // 专用访问方法
+    double ValueAt(int index)
+    {
+        return GetValue(0, index); // 威廉指标只有1个缓冲区
+    }
+
+    // 判断超买超卖
+    bool IsOverbought(int index) { return ValueAt(index) > -20.0; } // 常规超买阈值
+    bool IsOversold(int index) { return ValueAt(index) < -80.0; }   // 常规超卖阈值
+};
