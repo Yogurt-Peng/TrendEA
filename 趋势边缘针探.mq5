@@ -11,7 +11,6 @@ input int EMA1Value = 50;                       // EMA1指标值
 input int EMA2Value = 60;                       // EMA2指标值
 input int EMA3Value = 80;                       // EMA3指标值
 
-
 // 在hk50指数上测试无法盈利
 class CVegasTrendFollowing : public CStrategy
 {
@@ -24,7 +23,7 @@ public:
     CMA *m_EMA1;
     CMA *m_EMA2;
     CMA *m_EMA3;
-    CBollingerBands *bollinger;
+    CBollinger *bollinger;
 
 public:
     CVegasTrendFollowing(string symbol, ENUM_TIMEFRAMES timeFrame, int magicNumber, double lotSize) : CStrategy(symbol, timeFrame, magicNumber)
@@ -34,7 +33,7 @@ public:
         m_EMA1 = new CMA(symbol, timeFrame, EMA1Value, MODE_EMA);
         m_EMA2 = new CMA(symbol, timeFrame, EMA2Value, MODE_EMA);
         m_EMA3 = new CMA(symbol, timeFrame, EMA3Value, MODE_EMA);
-        bollinger = new CBollingerBands(symbol, timeFrame, 20, 2);
+        bollinger = new CBollinger(symbol, timeFrame, 20, 2);
         m_Tools = new CTools(symbol, &m_Trade);
         m_Trade.SetExpertMagicNumber(m_MagicNumber);
     }
@@ -84,12 +83,12 @@ public:
         ArraySetAsSeries(rates, true);
         CopyRates(m_Symbol, m_Timeframe, 1, 1, rates);
         // 阳线，最低价在布林带下轨之下，开盘价在布林带下轨之上
-        if (signal == BuySignal && rates[0].close > rates[0].open && rates[0].low < bollinger.GetValue(2, 1) && rates[0].open > bollinger.GetValue(2, 1)&& rates[0].close > m_EMA3.GetValue(1))
+        if (signal == BuySignal && rates[0].close > rates[0].open && rates[0].low < bollinger.GetValue(2, 1) && rates[0].open > bollinger.GetValue(2, 1) && rates[0].close > m_EMA3.GetValue(1))
         {
             return BuySignal;
         }
         // 阴线，最高价在布林带上轨之上，开盘价在布林带上轨之下
-        if (signal == SellSignal && rates[0].close < rates[0].open && rates[0].high > bollinger.GetValue(1, 1) && rates[0].open < bollinger.GetValue(1, 1)&& rates[0].close < m_EMA3.GetValue(1))
+        if (signal == SellSignal && rates[0].close < rates[0].open && rates[0].high > bollinger.GetValue(1, 1) && rates[0].open < bollinger.GetValue(1, 1) && rates[0].close < m_EMA3.GetValue(1))
         {
             return SellSignal;
         }
@@ -126,7 +125,6 @@ public:
     // 清理
     void ExitTrade() override
     {
-
     }
 };
 // 当最近N 根线的最高价或者最低价 大于或小于止损价格时候，更改止损价格到最近N根线的最高价或者最低价

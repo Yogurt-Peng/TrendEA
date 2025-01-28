@@ -131,9 +131,9 @@ public:
 
     string GetName() const { return "Bollinger"; }
 
-    double Upper(int index) { return GetValue(0, index); }
-    double Middle(int index) { return GetValue(1, index); }
-    double Lower(int index) { return GetValue(2, index); }
+    double Upper(int index) { return GetValue(index, 1); }
+    double Middle(int index) { return GetValue(index, 0); }
+    double Lower(int index) { return GetValue(index, 2); }
 };
 
 //+------------------------------------------------------------------+
@@ -454,7 +454,7 @@ protected:
 
     int CreateHandle()
     {
-        return iWPR(m_symbol, m_timeFrame, 。);
+        return iWPR(m_symbol, m_timeFrame, m_period);
     }
 
 public:
