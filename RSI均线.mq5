@@ -43,6 +43,9 @@ public:
             Print("Failed to initialize MA  indicator for ", m_Symbol);
             return false;
         }
+
+        ChartIndicatorAdd(0, 0, m_MA.GetHandle());
+        ChartIndicatorAdd(0, 1, m_RSI.GetHandle());
         return true;
     }
 
