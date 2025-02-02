@@ -4,7 +4,7 @@
 // 基本参数  US500 DAY 最佳
 input group "==============基本参数==============";
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 周期
-input int InpBaseMagicNumber;                        // 基础魔术号
+input int InpBaseMagicNumber = 48651;                // 基础魔术号
 input double InpLotSize = 0.1;                       // 交易手数
 input int InpALMAValue = 40;                         // ALMA指标值
 input double InpALMASigma = 6.0;                     // ALMASigam
@@ -18,7 +18,8 @@ input bool InpLong = true;            // 做多
 input bool InpShort = true;           // 做空
 
 // 在hk50指数上测试无法盈利
-// US500  40 6.0 0.4 7 10 8
+// US500  40 6.0 0.4 7 10 8  Day  0.1
+// USDJPY 50 6.0 0.85 5 10 5 Day 0.01
 class CALMATrendFollowing : public CStrategy
 {
 private:
@@ -111,13 +112,9 @@ public:
 
     void OnDeinit(const int reason)
     {
+        IndicatorRelease(m_ALMA.GetHandle());
         IndicatorRelease(m_EMAFast.GetHandle());
         IndicatorRelease(m_EMASlow.GetHandle());
-        IndicatorRelease(m_ALMA.GetHandle());
-        delete m_EMAFast;
-        delete m_EMASlow;
-        delete m_ALMA;
-        delete m_Tools;
     };
 };
 CALMATrendFollowing *g_Strategy;

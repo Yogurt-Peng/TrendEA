@@ -353,7 +353,7 @@ protected:
     int CreateHandle()
     {
         return iCustom(m_symbol, m_timeFrame, "Wait_Indicators\\alma_v2",
-                       m_period, m_sigma, m_offset, PRICE_CLOSE);
+                       m_timeFrame, PRICE_CLOSE, m_period, m_sigma, m_offset);
     }
 
 public:
