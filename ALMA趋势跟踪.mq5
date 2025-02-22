@@ -19,7 +19,8 @@ input int InpTrailingStop = 6;        // 移动止损点数
 
 input group "----->仓位管理";
 input bool InpUseKelly = true;       // 使用凯利公式
-input double InpKellyFraction = 0.5; // 凯利分数
+input double InpKellyFraction = 0.2; // 凯利分数
+input double InpStopLoss = 40000;    // 止损点数
 // 在hk50指数上测试无法盈利
 // US500  40 6.0 0.4 7 10 8  Day  0.1
 // USDJPY 50 6.0 0.85 5 10 5 Day 0.01
@@ -102,24 +103,28 @@ public:
 
         double lotSize = KailiFormulaCalacte(0.4, 3, 84);
 
-        Print("✔️[ALMA趋势跟踪.mq5:105]: lotSize: ", lotSize);
+        Print("✔️[ALMA趋势跟踪.mq5:106]: lotSize: ", lotSize);
 
         double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
         double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+        double buySl = ask - InpStopLoss * _Point;
+        double sellSl = bid + InpStopLoss * _Point;
 
-        double buySl = ask - 10000 * _Point;
-        double sellSl = bid + 10000 * _Point;
-
-        if (signal == BuySignal && m_Tools.GetPositionCount(m_MagicNumber, POSITION_TYPE_BUY) == 0)
+        if (InpLong && signal == BuySignal && m_Tools.GetPositionCount(m_MagicNumber, POSITION_TYPE_BUY) == 0)
         {
             m_Tools.CloseAllPositions(m_MagicNumber, POSITION_TYPE_SELL);
-            if (InpLong)
+
+            if (InpUseKelly)
+                m_Trade.Buy(InpUseKelly ? lotSize : InpLotSize, m_Symbol, ask, buySl);
+            else
                 m_Trade.Buy(InpUseKelly ? lotSize : InpLotSize);
         }
-        else if (signal == SellSignal && m_Tools.GetPositionCount(m_MagicNumber, POSITION_TYPE_SELL) == 0)
+        else if (InpShort && signal == SellSignal && m_Tools.GetPositionCount(m_MagicNumber, POSITION_TYPE_SELL) == 0)
         {
             m_Tools.CloseAllPositions(m_MagicNumber, POSITION_TYPE_BUY);
-            if (InpShort)
+            if (InpUseKelly)
+                m_Trade.Sell(InpUseKelly ? lotSize : InpLotSize, m_Symbol, bid, sellSl);
+            else
                 m_Trade.Sell(InpUseKelly ? lotSize : InpLotSize);
         }
     };
@@ -134,7 +139,7 @@ public:
     double KailiFormulaCalacte(double winningRate, double plRate, double avgLoss)
     {
         double balance = AccountInfoDouble(ACCOUNT_BALANCE);
-        balance = 10000;
+
         double f = (winningRate * (plRate + 1) - 1) / plRate;
         double lotSize = (balance * f) / avgLoss * 0.01 * InpKellyFraction;
         return NormalizeDouble(lotSize, 2);
