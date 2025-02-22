@@ -3,19 +3,15 @@
 #include "include/CTools.mqh"
 
 input group "==============基本参数==============";
-input ENUM_TIMEFRAMES InpTimeframe = PERIOD_H4; // 周期
+input ENUM_TIMEFRAMES InpTimeframe = PERIOD_H1; // 周期
 input int InpBaseMagicNumber = 155965;          // 基础魔术号
-input double InpLotSize = 0.1;                  // 交易手数
+input double InpLotSize = 0.01;                 // 交易手数
+input int InpEMA = 20;                          // EMA
+input int InpATR = 14;                          // ATR
+input double InpUpper = 2.5;                    // 上轨
 
-input int InpEMA = 20; // 慢速EMA
-input int InpATR = 14; // ATR
-
-input double InpUpper = 2.5; // 上轨
-
-input bool InpShort = true; // 做空
-
-// AUDCAD 1H 14 16 1.5 -3.5 false true
 // AUDUSD  1H 14 16 1.5
+// NZDUSD  1H 14 24 2.0
 class CEMA : public CStrategy
 {
 public:
@@ -96,10 +92,7 @@ public:
 
         if (signal == SellSignal && m_Tools.GetPositionCount(m_MagicNumber, POSITION_TYPE_SELL) == 0)
         {
-            if (InpShort)
-            {
-                m_Trade.Sell(InpLotSize);
-            }
+            m_Trade.Sell(InpLotSize);
         }
     };
 

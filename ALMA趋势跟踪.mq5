@@ -2,24 +2,28 @@
 #include "include/CIndicators.mqh"
 #include "include/CTools.mqh"
 // 基本参数  US500 DAY 最佳
-input group "==============基本参数==============";
+input group "----->黄金参数";
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 周期
-input int InpBaseMagicNumber = 1451211;              // 基础魔术号
-input double InpLotSize = 0.1;                       // 交易手数
-input int InpALMAValue = 40;                         // ALMA指标值
+input int InpBaseMagicNumber = 564814;               // 基础魔术号
+input double InpLotSize = 0.01;                      // 交易手数
+input int InpALMAValue = 60;                         // ALMA指标值
 input double InpALMASigma = 6.0;                     // ALMASigam
-input double InpALMAOffset = 0.4;                    // ALMAOffset
-input int InpEMAFast = 7;                            // 慢速EMA
-input int InpEMASlow = 10;                           // 快速EMA
-input group "==============移动止损==============";
+input double InpALMAOffset = 0.5;                    // ALMAOffset
+input int InpEMAFast = 4;                            // 慢速EMAb
+input int InpEMASlow = 11;                           // 快速EMA
+input bool InpLong = true;                           // 做多
+input bool InpShort = false;                         // 做空
+input group "----->移动止损";
 input bool InpUseTrailingStop = true; // 是否使用移动止损
-input int InpTrailingStop = 8;        // 移动止损点数
-input bool InpLong = true;            // 做多
-input bool InpShort = true;           // 做空
+input int InpTrailingStop = 6;        // 移动止损点数
 
+input group "----->仓位管理";
+input bool InpUseKelly = true;       // 使用凯利公式
+input double InpKellyFraction = 0.5; // 凯利分数
 // 在hk50指数上测试无法盈利
 // US500  40 6.0 0.4 7 10 8  Day  0.1
 // USDJPY 50 6.0 0.85 5 10 5 Day 0.01
+// XAUUSD 60 6.0 0.5 4 11 6 4H 0.01
 class CALMATrendFollowing : public CStrategy
 {
 private:
@@ -96,17 +100,27 @@ public:
 
         SignalType signal = TradeSignal();
 
+        double lotSize = KailiFormulaCalacte(0.4, 3, 84);
+
+        Print("✔️[ALMA趋势跟踪.mq5:105]: lotSize: ", lotSize);
+
+        double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+        double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+
+        double buySl = ask - 10000 * _Point;
+        double sellSl = bid + 10000 * _Point;
+
         if (signal == BuySignal && m_Tools.GetPositionCount(m_MagicNumber, POSITION_TYPE_BUY) == 0)
         {
             m_Tools.CloseAllPositions(m_MagicNumber, POSITION_TYPE_SELL);
             if (InpLong)
-                m_Trade.Buy(InpLotSize);
+                m_Trade.Buy(InpUseKelly ? lotSize : InpLotSize);
         }
         else if (signal == SellSignal && m_Tools.GetPositionCount(m_MagicNumber, POSITION_TYPE_SELL) == 0)
         {
             m_Tools.CloseAllPositions(m_MagicNumber, POSITION_TYPE_BUY);
             if (InpShort)
-                m_Trade.Sell(InpLotSize);
+                m_Trade.Sell(InpUseKelly ? lotSize : InpLotSize);
         }
     };
 
@@ -115,6 +129,15 @@ public:
         IndicatorRelease(m_ALMA.GetHandle());
         IndicatorRelease(m_EMAFast.GetHandle());
         IndicatorRelease(m_EMASlow.GetHandle());
+    };
+
+    double KailiFormulaCalacte(double winningRate, double plRate, double avgLoss)
+    {
+        double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+        balance = 10000;
+        double f = (winningRate * (plRate + 1) - 1) / plRate;
+        double lotSize = (balance * f) / avgLoss * 0.01 * InpKellyFraction;
+        return NormalizeDouble(lotSize, 2);
     };
 };
 CALMATrendFollowing *g_Strategy;
