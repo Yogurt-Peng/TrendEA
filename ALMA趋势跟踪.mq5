@@ -142,7 +142,10 @@ public:
 
         double f = (winningRate * (plRate + 1) - 1) / plRate;
         double lotSize = (balance * f) / avgLoss * 0.01 * InpKellyFraction;
-        return NormalizeDouble(lotSize, 2);
+        lotSize = NormalizeDouble(lotSize, 2);
+        if (lotSize <= 0.1)
+            lotSize = 0.1;
+        return lotSize;
     };
 };
 CALMATrendFollowing *g_Strategy;
