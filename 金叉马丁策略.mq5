@@ -14,8 +14,6 @@ input int InpEMASlow = 21; // 快速EMA
 input int InpEMAFastA = 39; // 慢速EMAb
 input int InpEMASlowB = 63; // 快速EMA
 
-input int InpWilliamsR = 14; // 威廉指标
-
 input double InpTakeProfit = 0.5; // 止盈点数
 input double InpStopLoss = 5;     // 止损点数
 
@@ -42,7 +40,6 @@ public:
         m_EMAFastA = new CMA(symbol, timeFrame, InpEMAFastA, MODE_EMA);
         m_EMASlowB = new CMA(symbol, timeFrame, InpEMASlowB, MODE_EMA);
 
-        m_WilliamsR = new CWilliamsR(symbol, timeFrame, InpWilliamsR);
         m_Tools = new CTools(symbol, &m_Trade);
         m_Trade.SetExpertMagicNumber(m_MagicNumber);
     }
@@ -66,16 +63,11 @@ public:
             Print("Failed to initialize EMAs");
             return false;
         }
-        if (!m_WilliamsR.Initialize())
-        {
-            Print("Failed to initialize WilliamsR");
-            return false;
-        }
+
         ChartIndicatorAdd(0, 0, m_EMAFast.GetHandle());
         ChartIndicatorAdd(0, 0, m_EMASlow.GetHandle());
         ChartIndicatorAdd(0, 0, m_EMAFastA.GetHandle());
         ChartIndicatorAdd(0, 0, m_EMASlowB.GetHandle());
-        ChartIndicatorAdd(0, 1, m_WilliamsR.GetHandle());
         return true;
     }
 
@@ -103,19 +95,6 @@ public:
         return NoSignal;
     }
 
-    SignalType TradeSignalB()
-    {
-        // 金叉条件：EMAfast上穿EMAslow且形成两周期趋势反转
-
-        double williamsRValueA = m_WilliamsR.GetValue(1);
-        double williamsRValueB = m_WilliamsR.GetValue(2);
-
-        if (williamsRValueA > -80 && williamsRValueB < -80)
-            return BuySignal;
-
-        return NoSignal;
-    }
-
     void ExecuteTrade() override
     {
 
@@ -132,7 +111,11 @@ public:
         if (!m_Tools.IsNewBar(m_Timeframe))
             return;
 
-        SignalType signal = TradeSignalB();
+        SignalType signal = TradeSignal();
+        if (m_counter >= 1)
+        {
+            signal = TradeSignalA();
+        }
 
         if (signal == BuySignal)
         {
