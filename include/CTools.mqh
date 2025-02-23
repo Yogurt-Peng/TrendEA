@@ -40,7 +40,6 @@ public:
     void ApplyTrailingStop(int distancePoints, long magicNum);
     // 根据K线最值跟踪止损
     void ApplyTrailingStopByHighLow(int barNumber, long magicNum);
-
     // 判断是否阳线
     bool IsUpBar(MqlRates &rates);
     //  获取所有订单总的亏损

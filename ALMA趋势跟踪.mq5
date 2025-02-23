@@ -5,7 +5,7 @@
 input group "----->黄金参数";
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 周期
 input int InpBaseMagicNumber = 564814;               // 基础魔术号
-input double InpLotSize = 0.01;                      // 交易手数
+input double InpLotSize = 0.1;                       // 交易手数
 input int InpALMAValue = 60;                         // ALMA指标值
 input double InpALMASigma = 6.0;                     // ALMASigam
 input double InpALMAOffset = 0.5;                    // ALMAOffset
@@ -143,8 +143,8 @@ public:
         double f = (winningRate * (plRate + 1) - 1) / plRate;
         double lotSize = (balance * f) / avgLoss * 0.01 * InpKellyFraction;
         lotSize = NormalizeDouble(lotSize, 2);
-        if (lotSize <= 0.1)
-            lotSize = 0.1;
+        if (lotSize <= InpLotSize)
+            lotSize = InpLotSize;
         return lotSize;
     };
 };
