@@ -8,11 +8,11 @@ input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 周期
 input int InpBaseMagicNumber = 245454;               // 基础魔术号
 input double InpLotSize = 0.01;                      // 交易手数
 
-input int InpEMAFast = 13; // 慢速EMAb
-input int InpEMASlow = 21; // 快速EMA
-
-input int InpEMAFastA = 39; // 慢速EMAb
-input int InpEMASlowB = 63; // 快速EMA
+input int InpEMAFast = 13;            // 慢速EMAb
+input int InpEMASlow = 21;            // 快速EMA
+input int InpTfMultiplier = 4;        // 周期倍数
+input int InpAddTimeframe = 4;        // 几次加仓增大周期
+input double InpAddLotMultiplier = 2; // 加仓系数
 
 input double InpTakeProfit = 0.5; // 止盈点数
 input double InpStopLoss = 5;     // 止损点数
@@ -37,8 +37,8 @@ public:
     {
         m_EMAFast = new CMA(symbol, timeFrame, InpEMAFast, MODE_EMA);
         m_EMASlow = new CMA(symbol, timeFrame, InpEMASlow, MODE_EMA);
-        m_EMAFastA = new CMA(symbol, timeFrame, InpEMAFastA, MODE_EMA);
-        m_EMASlowB = new CMA(symbol, timeFrame, InpEMASlowB, MODE_EMA);
+        m_EMAFastA = new CMA(symbol, timeFrame, InpEMAFast * InpTfMultiplier, MODE_EMA);
+        m_EMASlowB = new CMA(symbol, timeFrame, InpEMASlow * InpTfMultiplier, MODE_EMA);
 
         m_Tools = new CTools(symbol, &m_Trade);
         m_Trade.SetExpertMagicNumber(m_MagicNumber);
@@ -71,7 +71,7 @@ public:
         return true;
     }
 
-    SignalType TradeSignal() override
+    SignalType TradeSignalA()
     {
         // 金叉条件：EMAfast上穿EMAslow且形成两周期趋势反转
         bool buyCond1 = m_EMAFast.GetValue(1) > m_EMASlow.GetValue(1);
@@ -83,7 +83,7 @@ public:
         return NoSignal;
     }
 
-    SignalType TradeSignalA()
+    SignalType TradeSignalB()
     {
         // 金叉条件：EMAfast上穿EMAslow且形成两周期趋势反转
         bool buyCond1 = m_EMAFastA.GetValue(1) > m_EMASlowB.GetValue(1);
@@ -100,7 +100,15 @@ public:
 
         // 检查强制平仓条件
         double totalProfit = m_Tools.GetTotalProfit(m_MagicNumber);
-        if (totalProfit > InpTakeProfit || totalProfit < -InpStopLoss)
+        if (totalProfit < -InpStopLoss)
+        {
+            Print("强制平仓：总利润", totalProfit);
+            m_Tools.CloseAllPositions(m_MagicNumber);
+            m_counter = 0; // 平仓后计数器归零
+            return;
+        }
+
+        if (totalProfit > InpTakeProfit)
         {
             Print("强制平仓：总利润", totalProfit);
             m_Tools.CloseAllPositions(m_MagicNumber);
@@ -111,16 +119,18 @@ public:
         if (!m_Tools.IsNewBar(m_Timeframe))
             return;
 
-        SignalType signal = TradeSignal();
-        if (m_counter >= 1)
-        {
-            signal = TradeSignalA();
-        }
+        SignalType signal = TradeSignalA();
 
+        if (m_counter > InpAddTimeframe)
+            signal = TradeSignalB();
+
+        double lotSize = InpLotSize * MathPow(InpAddLotMultiplier, (m_counter - 1));
+        Print("✔️[金叉马丁策略.mq5:128]: lotSize: ", lotSize);
+        lotSize = NormalizeDouble(lotSize, 2);
         if (signal == BuySignal)
         {
             // 开立多仓
-            m_Trade.Buy(InpLotSize);
+            m_Trade.Buy(lotSize);
             m_counter++;
             Print("开多仓，计数器：", m_counter);
         }
