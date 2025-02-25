@@ -6,8 +6,9 @@ input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 周期
 input int InpBaseMagicNumber = 1458341;              // 基础魔术号
 input double InpLotSize = 0.01;                      // 交易手数
 input int InpRISValue = 10;                          // RSI参数
-input int InpGridSpacing = 100;                      // 网格间距
+input int InpGridSpacing = 4000;                     // 网格间距
 input double InpAdditionMultiple = 2;                // 加仓倍数
+input int InpMaxLayers = 5;                          // 最大加仓层数
 
 //--- 全局变量
 int currentLayer = 0;                // 当前加仓层数
@@ -51,10 +52,10 @@ public:
         }
 
         // sellSignal rsi 下穿越 70
-        if (m_RSI.GetValue(2) > 70 && m_RSI.GetValue(1) < 70)
-        {
-            return SellSignal;
-        }
+        // if (m_RSI.GetValue(2) > 70 && m_RSI.GetValue(1) < 70)
+        // {
+        //     return SellSignal;
+        // }
 
         return NoSignal;
     };
@@ -66,11 +67,17 @@ public:
         if (!m_Tools.IsNewBar(PERIOD_M1))
             return;
 
-        // 周五不开仓
+        // 只在美盘开单
         MqlDateTime currentTimeStruct;
         TimeToStruct(TimeCurrent(), currentTimeStruct);
-        if (currentTimeStruct.day_of_week == 5) // 5 代表周五
+
+        // 合并两个条件判断：
+        // 1. 小时 >=21 (21:00-23:59)
+        // 2. 小时 <5  (00:00-04:59)
+        if (!(currentTimeStruct.hour >= 21 || currentTimeStruct.hour < 5))
+        {
             return;
+        }
 
         // 1. 检查是否有未平仓订单
         if (PositionSelect(m_Symbol))
@@ -100,11 +107,12 @@ public:
                 // 亏损达到网格间距，平仓并反向开仓
                 m_Trade.PositionClose(m_Symbol);
 
-                if (currentLayer < 6) // 加仓次数小于 5 时继续加仓
+                if (currentLayer < InpMaxLayers) // 加仓次数小于 5 时继续加仓
                 {
                     currentLayer++;
                     // 计算新手数: InpLotSize * (倍数^层数)
                     double newLot = InpLotSize * MathPow(InpAdditionMultiple, currentLayer);
+                    newLot = NormalizeDouble(newLot, 2);
                     // 切换方向
                     ENUM_ORDER_TYPE newDirection = (positionType == POSITION_TYPE_BUY) ? ORDER_TYPE_SELL : ORDER_TYPE_BUY;
                     // 开反向订单
