@@ -9,7 +9,7 @@ input double InpLotSize = 0.1;                       // 交易手数
 input int InpALMAValue = 60;                         // ALMA指标值
 input double InpALMASigma = 6.0;                     // ALMASigam
 input double InpALMAOffset = 0.5;                    // ALMAOffset
-input int InpEMAFast = 4;                            // 慢速EMAb
+input int InpEMAFast = 4;                            // 慢速EMA
 input int InpEMASlow = 11;                           // 快速EMA
 input bool InpLong = true;                           // 做多
 input bool InpShort = false;                         // 做空
@@ -101,7 +101,7 @@ public:
 
         SignalType signal = TradeSignal();
 
-        double lotSize = KailiFormulaCalacte(0.4, 3, 84);
+        double lotSize = KailiFormulaCalacte(0.35, 3.2, 84);
 
         Print("✔️[ALMA趋势跟踪.mq5:106]: lotSize: ", lotSize);
 
