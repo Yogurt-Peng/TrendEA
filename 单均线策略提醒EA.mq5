@@ -4,11 +4,11 @@
 
 // 基本参数
 input group "==============基本参数==============";
-input ENUM_TIMEFRAMES InpTimeframe1H = PERIOD_H1;    // 1小时周期
-input ENUM_TIMEFRAMES InpTimeframe4H = PERIOD_H4;    // 4小时周期
-input ENUM_TIMEFRAMES InpTimeframeDay = PERIOD_D1;   // 日线周期
-input int InpBaseMagicNumber = 542824;               // 基础魔术号
-input int InpEMAValue = 60;                          // 快速均线
+input ENUM_TIMEFRAMES InpTimeframe1H = PERIOD_H1;                                                                                                                                                                                                                    // 1小时周期
+input ENUM_TIMEFRAMES InpTimeframe4H = PERIOD_H4;                                                                                                                                                                                                                    // 4小时周期
+input ENUM_TIMEFRAMES InpTimeframeDay = PERIOD_D1;                                                                                                                                                                                                                   // 日线周期
+input int InpBaseMagicNumber = 542824;                                                                                                                                                                                                                               // 基础魔术号
+input int InpEMAValue = 60;                                                                                                                                                                                                                                          // 快速均线
 input string InpSymbols = "XAUUSDm|BTCUSDm|AUDUSDm|EURUSDm|GBPUSDm|NZDUSDm|USDCADm|USDCHFm|USDJPYm|AUDCADm|AUDCHFm|AUDJPYm|AUDNZDm|CADCHFm|CADJPYm|CHFJPYm|EURAUDm|EURCHFm|EURGBPm|EURJPYm|EURNZDm|GBPAUDm|GBPCADm|GBPCHFm|GBPJPYm|GBPNZDm|NZDCADm|NZDCHFm|NZDJPYm"; // 交易品种
 
 // 品种数组
