@@ -336,8 +336,8 @@ public:
 
     string GetName() const { return "Donchian"; }
 
-    double Upper(int index) { return GetValue(0, index); }
-    double Lower(int index) { return GetValue(1, index); }
+    double Upper(int index) { return GetValue(index, 0); }
+    double Lower(int index) { return GetValue(index, 1); }
 };
 
 //+------------------------------------------------------------------+
@@ -472,4 +472,26 @@ public:
     // 判断超买超卖
     bool IsOverbought(int index) { return ValueAt(index) > -20.0; } // 常规超买阈值
     bool IsOversold(int index) { return ValueAt(index) < -80.0; }   // 常规超卖阈值
+};
+
+class CZigzag : public CIndicator
+{
+private:
+    int m_Depth;
+    int m_Deviation;
+    int m_BackStep;
+
+protected:
+    int CreateHandle()
+    {
+        return iCustom(m_symbol, m_timeFrame, "Examples\\ZigzagColor", m_Depth, m_Deviation, m_BackStep);
+    };
+
+public:
+    CZigzag(string symbol, ENUM_TIMEFRAMES tf, int depth = 10, int deviation = 5, int backstep = 3)
+        : CIndicator(symbol, tf), m_Depth(depth), m_Deviation(deviation), m_BackStep(backstep) {};
+
+    ~CZigzag() {};
+
+    string GetName() const { return "Zigzag"; };
 };
