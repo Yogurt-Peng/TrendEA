@@ -2,10 +2,10 @@
 #include "include/CIndicators.mqh"
 #include "include/CTools.mqh"
 
-// 海龟交易法则
-input ENUM_TIMEFRAMES InpTimeframe = PERIOD_H2; // 周期
-input int InpBaseMagicNumber = 165256;          // 基础魔术号
-input double InpLotSize = 0.01;                 // 交易手数
+// 海龟交易法则参数
+input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 周期
+input int InpBaseMagicNumber = 165256;               // 基础魔术号
+input double InpLotSize = 0.01;                      // 交易手数
 
 input int InpEntryDCPeriod = 40; // 入场DC周期
 input int InpExitDCPeriod = 20;  // 出场DC周期
@@ -16,6 +16,7 @@ input double InpAddATRMultiplier = 1;  // 波动多少倍加仓
 input int InpMaxAddition = 2;          // 最大加仓次数
 input bool InpLong = false;            // 做多
 input bool InpShort = true;            // 做空
+
 class CTurtleTradingLaw : public CStrategy
 {
 private:
@@ -24,13 +25,14 @@ private:
     CDonchian *m_DCEntry;
     CDonchian *m_DCExit;
 
-    int m_PostionSize;
-    double m_lastEntryPrice;
-    double m_EntryAtr;
+    int m_PositionSize;
+    double m_LastEntryPrice;
+    double m_EntryATR;
     SignalType m_Direction; // 交易方向
 
 public:
-    CTurtleTradingLaw(string symbol, ENUM_TIMEFRAMES timeFrame, int magicNumber) : CStrategy(symbol, timeFrame, magicNumber)
+    CTurtleTradingLaw(string symbol, ENUM_TIMEFRAMES timeFrame, int magicNumber)
+        : CStrategy(symbol, timeFrame, magicNumber)
     {
         m_ATR = new CATR(symbol, timeFrame, InpATRPeriod);
         m_DCEntry = new CDonchian(symbol, timeFrame, InpEntryDCPeriod);
@@ -39,25 +41,22 @@ public:
         m_Direction = NoSignal;
 
         m_Trade.SetExpertMagicNumber(m_MagicNumber);
-    };
-    ~CTurtleTradingLaw() {};
+    }
 
-    // 重写Initialize函数
+    ~CTurtleTradingLaw()
+    {
+        delete m_ATR;
+        delete m_DCEntry;
+        delete m_DCExit;
+        delete m_Tools;
+    }
+
+    // 初始化指标
     bool Initialize() override
     {
-        if (!m_ATR.Initialize())
+        if (!m_ATR.Initialize() || !m_DCEntry.Initialize() || !m_DCExit.Initialize())
         {
-            Print("Failed to initialize ATR indicator for ", m_Symbol);
-            return false;
-        }
-        if (!m_DCEntry.Initialize())
-        {
-            Print("Failed to initialize DCEntry indicator for ", m_Symbol);
-            return false;
-        }
-        if (!m_DCExit.Initialize())
-        {
-            Print("Failed to initialize DCExit indicator for ", m_Symbol);
+            Print("Failed to initialize indicators for ", m_Symbol);
             return false;
         }
 
@@ -65,137 +64,130 @@ public:
         ChartIndicatorAdd(0, 0, m_DCExit.GetHandle());
         ChartIndicatorAdd(0, 1, m_ATR.GetHandle());
         return true;
-    };
+    }
 
-    // 自定义信号逻辑
+    // 生成交易信号
     SignalType TradeSignal() override
     {
-        double close_1 = iClose(m_Symbol, m_Timeframe, 1);
-        double close_2 = iClose(m_Symbol, m_Timeframe, 2);
-        if (close_1 > m_DCEntry.Upper(1) && close_2 < m_DCEntry.Upper(1))
+        double close1 = iClose(m_Symbol, m_Timeframe, 1);
+        double close2 = iClose(m_Symbol, m_Timeframe, 2);
+
+        if (close1 > m_DCEntry.Upper(1) && close2 <= m_DCEntry.Upper(1))
             return BuySignal;
-        else if (close_1 < m_DCEntry.Lower(1) && close_2 > m_DCEntry.Lower(1))
+        if (close1 < m_DCEntry.Lower(1) && close2 >= m_DCEntry.Lower(1))
             return SellSignal;
         return NoSignal;
-    };
+    }
 
+    // 执行交易逻辑
     void ExecuteTrade() override
     {
-
         if (!m_Tools.IsNewBar(PERIOD_M1))
             return;
 
-        double buy = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
-        double sell = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+        double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+        double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+        double atrValue = m_ATR.GetValue(1);
 
-        double buySl = buy - InpSLATRMultiplier * m_ATR.GetValue(1);
-        double sellSl = sell + InpSLATRMultiplier * m_ATR.GetValue(1);
-
-        if (buy < m_DCExit.Lower(1) && m_Direction == BuySignal)
+        // 平仓逻辑
+        if ((bid < m_DCExit.Lower(1) && m_Direction == BuySignal) || (ask > m_DCExit.Upper(1) && m_Direction == SellSignal))
         {
-            m_Tools.CloseAllPositions(m_MagicNumber, POSITION_TYPE_BUY);
-            m_PostionSize = 0;
-            m_lastEntryPrice = 0;
-            m_EntryAtr = 0;
-            m_Direction = NoSignal;
-        }
-        else if (sell > m_DCExit.Upper(1) && m_Direction == SellSignal)
-        {
-            m_Tools.CloseAllPositions(m_MagicNumber, POSITION_TYPE_SELL);
-            m_PostionSize = 0;
-            m_lastEntryPrice = 0;
-            m_EntryAtr = 0;
-            m_Direction = NoSignal;
-        }
-
-        if (m_Tools.GetPositionCount(m_MagicNumber) >= InpMaxAddition + 1)
+            CloseAllPositions();
             return;
-
-        int postionCount = m_Tools.GetPositionCount(m_MagicNumber);
-
-        SignalType signal = TradeSignal();
-
-        if (signal == BuySignal && postionCount == 0 && m_Direction == NoSignal && InpLong)
-        {
-            m_Trade.Buy(InpLotSize, m_Symbol, buy, buySl);
-            m_lastEntryPrice = buy;
-            m_PostionSize++;
-            m_EntryAtr = m_ATR.GetValue(1);
-            m_Direction = BuySignal;
-        }
-        else if (signal == SellSignal && postionCount == 0 && m_Direction == NoSignal && InpShort)
-        {
-            m_Trade.Sell(InpLotSize, m_Symbol, sell, sellSl);
-            m_lastEntryPrice = sell;
-            m_PostionSize++;
-            m_EntryAtr = m_ATR.GetValue(1);
-            m_Direction = SellSignal;
         }
 
-        if (m_PostionSize > 0)
+        // 加仓逻辑
+        if (m_PositionSize > 0 && m_PositionSize <= InpMaxAddition)
         {
-            if ((buy - m_lastEntryPrice) >= InpAddATRMultiplier * m_EntryAtr && m_Direction == BuySignal)
-            { // 多头加仓条件
-                if (m_Direction != BuySignal)
-                    return;
-                m_Trade.Buy(InpLotSize, m_Symbol, buy, buySl);
-                m_lastEntryPrice = buy;
-                m_PostionSize++;
-                Print("多头加仓");
-                ChangeAllOrderSLTP(buySl);
+            if (m_Direction == BuySignal && (ask - m_LastEntryPrice) >= InpAddATRMultiplier * m_EntryATR)
+            {
+                AddPosition(ask, ask - InpSLATRMultiplier * atrValue, "Buy Addition");
             }
-            else if ((m_lastEntryPrice - sell) >= InpAddATRMultiplier * m_EntryAtr && m_Direction == SellSignal)
-            { // 空头加仓条件
-
-                m_Trade.Sell(InpLotSize, m_Symbol, sell, sellSl);
-                m_PostionSize++;
-                m_lastEntryPrice = sell;
-                Print("空头加仓");
-                ChangeAllOrderSLTP(sellSl);
+            else if (m_Direction == SellSignal && (m_LastEntryPrice - bid) >= InpAddATRMultiplier * m_EntryATR)
+            {
+                AddPosition(bid, bid + InpSLATRMultiplier * atrValue, "Sell Addition");
             }
         }
-    };
 
-    void OnDeinit(const int reason) {
-    };
+        // 初始入场逻辑
+        if (m_PositionSize == 0)
+        {
+            SignalType signal = TradeSignal();
+            if (signal == BuySignal && InpLong)
+            {
+                OpenPosition(ask, ask - InpSLATRMultiplier * atrValue, "Buy Entry");
+            }
+            else if (signal == SellSignal && InpShort)
+            {
+                OpenPosition(bid, bid + InpSLATRMultiplier * atrValue, "Sell Entry");
+            }
+        }
+    }
 
-    void ChangeAllOrderSLTP(double price)
+private:
+    // 开仓
+    void OpenPosition(double price, double sl, string comment)
     {
-        CPositionInfo m_positionInfo;
-        int magicNum = m_MagicNumber;
-        string m_symbol = _Symbol;
+        m_Direction = (m_Direction == NoSignal) ? (comment == "Buy Entry" ? BuySignal : SellSignal) : m_Direction;
+
+        if (m_Direction == BuySignal)
+            m_Trade.Buy(InpLotSize, m_Symbol, price, sl, 0, comment);
+        else
+            m_Trade.Sell(InpLotSize, m_Symbol, price, sl, 0, comment);
+
+        m_LastEntryPrice = price;
+        m_EntryATR = m_ATR.GetValue(1);
+        m_PositionSize++;
+    }
+
+    // 加仓
+    void AddPosition(double price, double sl, string comment)
+    {
+        OpenPosition(price, sl, comment);
+        ChangeAllOrderSLTP(sl);
+        Print(comment);
+    }
+
+    // 平仓
+    void CloseAllPositions()
+    {
+        m_Tools.CloseAllPositions(m_MagicNumber, m_Direction == BuySignal ? POSITION_TYPE_BUY : POSITION_TYPE_SELL);
+        m_PositionSize = 0;
+        m_LastEntryPrice = 0;
+        m_EntryATR = 0;
+        m_Direction = NoSignal;
+    }
+
+    // 修改所有订单止损
+    void ChangeAllOrderSLTP(double sl)
+    {
+        CPositionInfo positionInfo;
         for (int i = PositionsTotal() - 1; i >= 0; i--)
         {
-            if (m_positionInfo.SelectByIndex(i) && m_positionInfo.Magic() == magicNum && m_positionInfo.Symbol() == m_symbol)
+            if (positionInfo.SelectByIndex(i) && positionInfo.Magic() == m_MagicNumber && positionInfo.Symbol() == _Symbol)
             {
-                ulong tick = m_positionInfo.Ticket();
-                long type = m_positionInfo.PositionType();
-                double Pos_Open = m_positionInfo.PriceOpen();
-                double Pos_Curr = m_positionInfo.PriceCurrent();
-                double Pos_TP = m_positionInfo.TakeProfit();
-                double Pos_SL = m_positionInfo.StopLoss();
-
-                if (!m_Trade.PositionModify(tick, price, 0))
-                    Print(m_symbol, "|", magicNum, " 修改止损失败, Return code=", m_Trade.ResultRetcode(),
-                          ". Code description: ", m_Trade.ResultRetcodeDescription());
+                if (!m_Trade.PositionModify(positionInfo.Ticket(), sl, 0))
+                {
+                    Print(_Symbol, "|", m_MagicNumber, " Failed to modify SL, Error: ", m_Trade.ResultRetcodeDescription());
+                }
             }
-        };
+        }
     }
 };
+
 CTurtleTradingLaw *g_Strategy;
 
 //+------------------------------------------------------------------+
 
 int OnInit()
 {
-
     g_Strategy = new CTurtleTradingLaw(_Symbol, InpTimeframe, InpBaseMagicNumber);
     if (!g_Strategy.Initialize())
     {
         Print("Failed to initialize strategy!");
         return INIT_FAILED;
     }
-    return (INIT_SUCCEEDED);
+    return INIT_SUCCEEDED;
 }
 
 void OnTick()
@@ -205,5 +197,5 @@ void OnTick()
 
 void OnDeinit(const int reason)
 {
-    g_Strategy.OnDeinit(reason);
+    delete g_Strategy;
 }
