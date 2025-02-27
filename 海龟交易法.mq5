@@ -3,18 +3,19 @@
 #include "include/CTools.mqh"
 
 // 海龟交易法则
-input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 周期
-input int InpBaseMagicNumber = 678442;               // 基础魔术号
-input double InpLotSize = 0.01;                      // 交易手数
+input ENUM_TIMEFRAMES InpTimeframe = PERIOD_H2; // 周期
+input int InpBaseMagicNumber = 165256;          // 基础魔术号
+input double InpLotSize = 0.01;                 // 交易手数
 
-input int InpEntryDCPeriod = 20; // 入场DC周期
-input int InpExitDCPeriod = 10;  // 出场DC周期
+input int InpEntryDCPeriod = 40; // 入场DC周期
+input int InpExitDCPeriod = 20;  // 出场DC周期
 
-input int InpATRPeriod = 14;            // ATR周期
-input double InpSLATRMultiplier = 3.0;  // 止损ATR倍数
-input double InpAddATRMultiplier = 1.5; // 波动多少倍加仓
-input int InpMaxAddition = 3;           // 最大加仓次数
-
+input int InpATRPeriod = 15;           // ATR周期
+input double InpSLATRMultiplier = 3.0; // 止损ATR倍数
+input double InpAddATRMultiplier = 1;  // 波动多少倍加仓
+input int InpMaxAddition = 2;          // 最大加仓次数
+input bool InpLong = false;            // 做多
+input bool InpShort = true;            // 做空
 class CTurtleTradingLaw : public CStrategy
 {
 private:
@@ -60,6 +61,9 @@ public:
             return false;
         }
 
+        ChartIndicatorAdd(0, 0, m_DCEntry.GetHandle());
+        ChartIndicatorAdd(0, 0, m_DCExit.GetHandle());
+        ChartIndicatorAdd(0, 1, m_ATR.GetHandle());
         return true;
     };
 
@@ -111,7 +115,7 @@ public:
 
         SignalType signal = TradeSignal();
 
-        if (signal == BuySignal && postionCount == 0 && m_Direction == NoSignal)
+        if (signal == BuySignal && postionCount == 0 && m_Direction == NoSignal && InpLong)
         {
             m_Trade.Buy(InpLotSize, m_Symbol, buy, buySl);
             m_lastEntryPrice = buy;
@@ -119,7 +123,7 @@ public:
             m_EntryAtr = m_ATR.GetValue(1);
             m_Direction = BuySignal;
         }
-        else if (signal == SellSignal && postionCount == 0 && m_Direction == NoSignal)
+        else if (signal == SellSignal && postionCount == 0 && m_Direction == NoSignal && InpShort)
         {
             m_Trade.Sell(InpLotSize, m_Symbol, sell, sellSl);
             m_lastEntryPrice = sell;
@@ -138,6 +142,7 @@ public:
                 m_lastEntryPrice = buy;
                 m_PostionSize++;
                 Print("多头加仓");
+                ChangeAllOrderSLTP(buySl);
             }
             else if ((m_lastEntryPrice - sell) >= InpAddATRMultiplier * m_EntryAtr && m_Direction == SellSignal)
             { // 空头加仓条件
@@ -146,12 +151,36 @@ public:
                 m_PostionSize++;
                 m_lastEntryPrice = sell;
                 Print("空头加仓");
+                ChangeAllOrderSLTP(sellSl);
             }
         }
     };
 
     void OnDeinit(const int reason) {
     };
+
+    void ChangeAllOrderSLTP(double price)
+    {
+        CPositionInfo m_positionInfo;
+        int magicNum = m_MagicNumber;
+        string m_symbol = _Symbol;
+        for (int i = PositionsTotal() - 1; i >= 0; i--)
+        {
+            if (m_positionInfo.SelectByIndex(i) && m_positionInfo.Magic() == magicNum && m_positionInfo.Symbol() == m_symbol)
+            {
+                ulong tick = m_positionInfo.Ticket();
+                long type = m_positionInfo.PositionType();
+                double Pos_Open = m_positionInfo.PriceOpen();
+                double Pos_Curr = m_positionInfo.PriceCurrent();
+                double Pos_TP = m_positionInfo.TakeProfit();
+                double Pos_SL = m_positionInfo.StopLoss();
+
+                if (!m_Trade.PositionModify(tick, price, 0))
+                    Print(m_symbol, "|", magicNum, " 修改止损失败, Return code=", m_Trade.ResultRetcode(),
+                          ". Code description: ", m_Trade.ResultRetcodeDescription());
+            }
+        };
+    }
 };
 CTurtleTradingLaw *g_Strategy;
 
