@@ -3,17 +3,24 @@
 #include "include/CTools.mqh"
 
 // 海龟交易法则参数
-input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 周期
-input int InpBaseMagicNumber = 165256;               // 基础魔术号
-input double InpMaxRisk = 1;                         // 每个头寸的风险百分比
-input int InpEntryDCPeriod = 40;                     // 入场DC周期
-input int InpExitDCPeriod = 20;                      // 出场DC周期
-input int InpATRPeriod = 15;                         // ATR周期
-input double InpSLATRMultiplier = 3.0;               // 止损ATR倍数
-input double InpAddATRMultiplier = 1;                // 波动多少倍加仓
-input int InpMaxAddition = 2;                        // 最大加仓次数
-input bool InpLong = false;                          // 做多
-input bool InpShort = true;                          // 做空
+input ENUM_TIMEFRAMES InpTimeframe = PERIOD_H2; // 周期
+input int InpBaseMagicNumber = 4156454;         // 基础魔术号
+
+input int InpLotType = 2;       // 1:手数,2:百分比
+input double InpLotSize = 0.01; // 手数
+input double InpMaxRisk = 1;    // 每个头寸的风险百分比
+
+input int InpEntryDCPeriod = 20;        // 入场DC周期
+input int InpExitDCPeriod = 15;         // 出场DC周期
+input int InpATRPeriod = 14;            // ATR周期
+input double InpSLATRMultiplier = 2.0;  // 止损ATR倍数
+input double InpAddATRMultiplier = 0.5; // 波动多少倍加仓
+input int InpMaxAddition = 2;           // 最大加仓次数
+input bool InpLong = false;             // 做多
+input bool InpShort = true;             // 做空
+
+// XAUUSDc 8H 20 10 14 3 1.0
+// US500c 2H 20 15 14 2 0.5
 
 class CTurtleTradingLaw : public CStrategy
 {
@@ -130,8 +137,11 @@ private:
     void OpenPosition(double price, double sl, string comment)
     {
         m_Direction = (m_Direction == NoSignal) ? (comment == "Buy Entry" ? BuySignal : SellSignal) : m_Direction;
-
-        double lotSize = m_Tools.CalcLots(price, sl, InpMaxRisk);
+        double lotSize = 0;
+        if (InpLotType == 2)
+            lotSize = m_Tools.CalcLots(price, sl, InpMaxRisk);
+        else
+            lotSize = InpLotSize;
 
         if (m_Direction == BuySignal)
             m_Trade.Buy(lotSize, m_Symbol, price, sl, 0, comment);
