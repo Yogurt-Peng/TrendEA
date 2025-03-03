@@ -1,98 +1,42 @@
-﻿#include "include/CStrategy.mqh"
-#include "include/CIndicators.mqh"
-#include "include/CTools.mqh"
-#include "include/Draw.mqh"
-// 基本参数  US500 DAY 最佳
-input group "----->欧美货币";
-input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 周期
-input int InpBaseMagicNumber = 564814;               // 基础魔术号
-input double InpAccountPercentage = 0.1;
-input group "----->高点低点";
-input int InpDepth = 10;   // 深度
-input int InpDevotion = 5; // 偏离
-input int InpBackStep = 2;
-input int InpDeleteOrlderTime = 10; // 删除订单时间（H）
-input group "----->止盈止损";
-input int InpStopLoss = 100;   // 止损
-input int InpTakeProfit = 100; // 止盈
-input group "----->跟踪止损";
-input int InpTrailingStopPips = 20;     // 跟踪止损
-input int TriggerTrailingStopPips = 10; // 触发跟踪止损
+﻿
 
-class CStrateging : public CStrategy
+void OnStart()
 {
-private:
-  CTools *m_Tools;
+       // int symbol = Symbol();
+       double bance = 10000;
+       string symbol = 
+       double entryPrice = 150.634;
+       double stopLossPrice = 149.426;
+       double atr = 0.604;
+       double maxRisk = 0.02;
+       double lot = (bance * maxRisk) / (atr * 2);
 
-public:
-  CALMA *m_ALMA;
-  CMA *m_EMAFast;
-  CMA *m_EMASlow;
+       double slMoney = 0;
+       // 亏损的钱
+       slMoney = bance * maxRisk;
+       // 几位小数
+       int digits = (int)SymbolInfoInteger(m_symbol, SYMBOL_DIGITS);
 
-public:
-  CStrateging(string symbol, ENUM_TIMEFRAMES timeFrame, int magicNumber) : CStrategy(symbol, timeFrame, magicNumber)
-  {
-    m_Zigzag = CZigzag(symbol, timeFrame, InpDepth, InpDevotion, InpBackStep);
-    m_Tools = new CTools(symbol, &m_Trade);
-    m_Trade.SetExpertMagicNumber(m_MagicNumber);
-  };
-  ~CStrateging() {};
+       double slDistance = NormalizeDouble(MathAbs(et - sl), digits) / _Point;
 
-  // 重写Initialize函数
-  bool Initialize() override
-  {
-    // 初始化EMAFast指标
-    if (!m_EMAFast.Initialize())
-    {
-      Print("Failed to initialize EMAFast indicator for ", m_Symbol);
-      return false;
-    }
-    // 初始化EMASlow指标
+       if (slDistance <= 0)
+       {
+              Print("Stop loss distance is zero or negative.");
+              return 0;
+       }
 
-    return true;
-  };
+       double tickValue = SymbolInfoDouble(m_symbol, SYMBOL_POINT);
 
-  // 自定义信号逻辑
-  SignalType TradeSignal() override
-  {
-    // 多头排列且满足均线发散条件
+       // 风控 / 止损 / 点值 迷你手数需要除以100
+       double lot = NormalizeDouble(slMoney / slDistance / tickValue / 100, 2);
 
-    return NoSignal;
-  };
+       double lotstep = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_STEP);
+       lot = MathRound(lot / lotstep) * lotstep;
 
-  void ExecuteTrade() override
-  {
+       if (lot < SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MIN))
+              lot = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MIN);
+       else if (lot >= SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MAX))
+              lot = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MAX);
 
-    if (!m_Tools.IsNewBar(m_Timeframe))
-      return;
-  }
-
-  void OnDeinit(const int reason) {
-
-  };
-};
-CStrateging *g_Strategy;
-
-//+------------------------------------------------------------------+
-
-int OnInit()
-{
-
-  g_Strategy = new CStrateging(_Symbol, InpTimeframe, InpBaseMagicNumber);
-  if (!g_Strategy.Initialize())
-  {
-    Print("Failed to initialize strategy!");
-    return INIT_FAILED;
-  }
-  return (INIT_SUCCEEDED);
-}
-
-void OnTick()
-{
-  g_Strategy.OnTick();
-}
-
-void OnDeinit(const int reason)
-{
-  g_Strategy.OnDeinit(reason);
+       Print("✔️[Test.mq5:13]: lot: ", lot);
 }

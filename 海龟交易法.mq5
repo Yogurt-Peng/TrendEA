@@ -5,17 +5,15 @@
 // 海龟交易法则参数
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 周期
 input int InpBaseMagicNumber = 165256;               // 基础魔术号
-input double InpLotSize = 0.01;                      // 交易手数
-
-input int InpEntryDCPeriod = 40; // 入场DC周期
-input int InpExitDCPeriod = 20;  // 出场DC周期
-
-input int InpATRPeriod = 15;           // ATR周期
-input double InpSLATRMultiplier = 3.0; // 止损ATR倍数
-input double InpAddATRMultiplier = 1;  // 波动多少倍加仓
-input int InpMaxAddition = 2;          // 最大加仓次数
-input bool InpLong = false;            // 做多
-input bool InpShort = true;            // 做空
+input double InpMaxRisk = 1;                         // 每个头寸的风险百分比
+input int InpEntryDCPeriod = 40;                     // 入场DC周期
+input int InpExitDCPeriod = 20;                      // 出场DC周期
+input int InpATRPeriod = 15;                         // ATR周期
+input double InpSLATRMultiplier = 3.0;               // 止损ATR倍数
+input double InpAddATRMultiplier = 1;                // 波动多少倍加仓
+input int InpMaxAddition = 2;                        // 最大加仓次数
+input bool InpLong = false;                          // 做多
+input bool InpShort = true;                          // 做空
 
 class CTurtleTradingLaw : public CStrategy
 {
@@ -82,8 +80,6 @@ public:
     // 执行交易逻辑
     void ExecuteTrade() override
     {
-        if (!m_Tools.IsNewBar(PERIOD_M1))
-            return;
 
         double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
         double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
@@ -109,12 +105,17 @@ public:
             }
         }
 
+        if (!m_Tools.IsNewBar(PERIOD_M1))
+            return;
+
         // 初始入场逻辑
         if (m_PositionSize == 0)
         {
+
             SignalType signal = TradeSignal();
             if (signal == BuySignal && InpLong)
             {
+
                 OpenPosition(ask, ask - InpSLATRMultiplier * atrValue, "Buy Entry");
             }
             else if (signal == SellSignal && InpShort)
@@ -130,10 +131,12 @@ private:
     {
         m_Direction = (m_Direction == NoSignal) ? (comment == "Buy Entry" ? BuySignal : SellSignal) : m_Direction;
 
+        double lotSize = m_Tools.CalcLots(price, sl, InpMaxRisk);
+
         if (m_Direction == BuySignal)
-            m_Trade.Buy(InpLotSize, m_Symbol, price, sl, 0, comment);
+            m_Trade.Buy(lotSize, m_Symbol, price, sl, 0, comment);
         else
-            m_Trade.Sell(InpLotSize, m_Symbol, price, sl, 0, comment);
+            m_Trade.Sell(lotSize, m_Symbol, price, sl, 0, comment);
 
         m_LastEntryPrice = price;
         m_EntryATR = m_ATR.GetValue(1);

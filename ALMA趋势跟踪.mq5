@@ -4,21 +4,21 @@
 // 基本参数  US500 DAY 最佳
 input group "----->黄金参数";
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 周期
-input int InpBaseMagicNumber = 564814;               // 基础魔术号
-input double InpLotSize = 0.1;                       // 交易手数
-input int InpALMAValue = 60;                         // ALMA指标值
+input int InpBaseMagicNumber = 5424524;              // 基础魔术号
+input double InpLotSize = 0.15;                      // 交易手数
+input int InpALMAValue = 50;                         // ALMA指标值
 input double InpALMASigma = 6.0;                     // ALMASigam
-input double InpALMAOffset = 0.5;                    // ALMAOffset
-input int InpEMAFast = 4;                            // 慢速EMA
-input int InpEMASlow = 11;                           // 快速EMA
+input double InpALMAOffset = 0.85;                   // ALMAOffset
+input int InpEMAFast = 5;                            // 慢速EMA
+input int InpEMASlow = 10;                           // 快速EMA
 input bool InpLong = true;                           // 做多
-input bool InpShort = false;                         // 做空
+input bool InpShort = true;                          // 做空
 input group "----->移动止损";
 input bool InpUseTrailingStop = true; // 是否使用移动止损
-input int InpTrailingStop = 6;        // 移动止损点数
+input int InpTrailingStop = 5;        // 移动止损点数
 
 input group "----->仓位管理";
-input bool InpUseKelly = true;       // 使用凯利公式
+input bool InpUseKelly = false;      // 使用凯利公式
 input double InpKellyFraction = 0.2; // 凯利分数
 input double InpStopLoss = 40000;    // 止损点数
 // 在hk50指数上测试无法盈利

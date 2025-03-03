@@ -320,32 +320,70 @@ int CTools::GetPositionCount(long magicNum, ENUM_POSITION_TYPE type)
 }
 
 // 进厂价格，止损价格，账户余额的百分数
+// double CTools::CalcLots(double et, double sl, double slParam)
+// {
+//     double slMoney = 0;
+//     // 亏损的钱
+//     slMoney = AccountInfoDouble(ACCOUNT_BALANCE) * slParam / 100.0;
+//     // 几位小数
+//     int digits = (int)SymbolInfoInteger(m_symbol, SYMBOL_DIGITS);
+
+//     double slDistance = NormalizeDouble(MathAbs(et - sl), digits) / _Point;
+
+//     if (slDistance <= 0)
+//     {
+//         Print("Stop loss distance is zero or negative.");
+//         return 0;
+//     }
+//     // SYMBOL_TRADE_TICK_VALUE的值
+//     double tickValue = SymbolInfoDouble(m_symbol, SYMBOL_TRADE_TICK_VALUE_PROFIT);
+//     if (tickValue == 0)
+//     {
+//         Print("Tick value is zero.");
+//         return 0;
+//     }
+//     // 风控 / 止损 / 点值
+//     double lot = NormalizeDouble(slMoney / slDistance / tickValue, 2);
+
+//     double lotstep = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_STEP);
+//     lot = MathRound(lot / lotstep) * lotstep;
+
+//     if (lot < SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MIN))
+//         lot = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MIN);
+//     else if (lot >= SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MAX))
+//         lot = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MAX);
+
+//     return lot;
+// }
+
 double CTools::CalcLots(double et, double sl, double slParam)
 {
     double slMoney = 0;
     // 亏损的钱
     slMoney = AccountInfoDouble(ACCOUNT_BALANCE) * slParam / 100.0;
+    Print("✔️[CTools.mqh:364]: slMoney: ", slMoney);
     // 几位小数
     int digits = (int)SymbolInfoInteger(m_symbol, SYMBOL_DIGITS);
 
-    double slDistance = NormalizeDouble(MathAbs(et - sl), digits) / Point();
+    double slDistance = NormalizeDouble(MathAbs(et - sl), digits) / _Point;
+    Print("✔️[CTools.mqh:369]: slDistance: ", slDistance);
 
     if (slDistance <= 0)
+    {
+        Print("Stop loss distance is zero or negative.");
         return 0;
-    // SYMBOL_TRADE_TICK_VALUE_PROFIT的值
-    double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
-    if (tickValue == 0)
-        return 0;
-    // 风控 / 止损 / 点值
-    double lot = NormalizeDouble(slMoney / slDistance / tickValue, 2);
+    }
+
+    double tickValue = SymbolInfoDouble(m_symbol, SYMBOL_TRADE_TICK_VALUE);
+
+    Print("✔️[CTools.mqh:378]: tickValue: ", tickValue);
+
+    // 风控 / 止损 / 点值 迷你手数需要除以100
+    double lot = NormalizeDouble(slMoney / (slDistance * tickValue), 2);
+    Print("✔️[CTools.mqh:382]: lot: ", lot);
 
     double lotstep = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_STEP);
     lot = MathRound(lot / lotstep) * lotstep;
-
-    if (lot < SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MIN))
-        lot = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MIN);
-    else if (lot >= SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MAX))
-        lot = 10;
 
     return lot;
 }
