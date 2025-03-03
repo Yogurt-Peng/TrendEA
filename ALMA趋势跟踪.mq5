@@ -5,7 +5,7 @@
 input group "----->黄金参数";
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 周期
 input int InpBaseMagicNumber = 5424524;              // 基础魔术号
-input double InpLotSize = 0.15;                      // 交易手数
+input double InpLotSize = 0.14;                      // 交易手数
 input int InpALMAValue = 50;                         // ALMA指标值
 input double InpALMASigma = 6.0;                     // ALMASigam
 input double InpALMAOffset = 0.85;                   // ALMAOffset
