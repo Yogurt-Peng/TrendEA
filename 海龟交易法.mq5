@@ -98,7 +98,7 @@ public:
             CloseAllPositions();
             return;
         }
-
+        m_PositionSize = m_Tools.GetPositionCount(InpBaseMagicNumber);
         // 加仓逻辑
         if (m_PositionSize > 0 && m_PositionSize <= InpMaxAddition)
         {
