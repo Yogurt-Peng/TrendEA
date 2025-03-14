@@ -21,6 +21,7 @@ input bool InpShort = true;             // 做空
 
 // XAUUSDc 8H 20 10 14 3 1.0
 // US500c 2H 20 15 14 2 0.5
+// BTCUSDC 2H 20 15 15 2 0.5
 
 class CTurtleTradingLaw : public CStrategy
 {
@@ -132,6 +133,30 @@ public:
         }
     }
 
+    void debugInfo()
+    {
+        string sym = m_Symbol;
+        string tf = EnumToString(m_Timeframe);
+        string lotMode = InpLotType == 1 ? "固定手数" : "ATR倍数";
+
+        string isAutoTrade = TerminalInfoInteger(TERMINAL_TRADE_ALLOWED) == 1 ? "开启算法交易" : "算法交易被关闭";
+
+        double price = iClose(m_Symbol, m_Timeframe, 1);
+        double sl = price - InpSLATRMultiplier * m_ATR.GetValue(1);
+
+        double slAtr = NormalizeDouble(InpSLATRMultiplier * m_ATR.GetValue(1), 2);
+        double lotSize = m_Tools.CalcLots(price, sl, InpMaxRisk);
+        // 打印品种和计算出的手数,打印ATR， 打印是否开启了算法交易
+        Print(sym, " | ", tf, " | ", lotMode, " | ", lotSize, " | ", slAtr, " | ", isAutoTrade, " | ", InpEntryDCPeriod, " | ", InpExitDCPeriod);
+    }
+
+    void OnDeinit(const int reason)
+    {
+        IndicatorRelease(m_ATR.GetHandle());
+        IndicatorRelease(m_DCEntry.GetHandle());
+        IndicatorRelease(m_DCExit.GetHandle());
+    };
+
 private:
     // 开仓
     void OpenPosition(double price, double sl, string comment)
@@ -200,6 +225,7 @@ int OnInit()
         Print("Failed to initialize strategy!");
         return INIT_FAILED;
     }
+    EventSetTimer(10); // 设置定时器，每30秒执行一次OnTimer函数
     return INIT_SUCCEEDED;
 }
 
@@ -210,5 +236,11 @@ void OnTick()
 
 void OnDeinit(const int reason)
 {
+    g_Strategy.OnDeinit(reason);
     delete g_Strategy;
+}
+
+void OnTimer()
+{
+    g_Strategy.debugInfo();
 }

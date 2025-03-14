@@ -376,11 +376,11 @@ double CTools::CalcLots(double et, double sl, double slParam)
 
     double tickValue = SymbolInfoDouble(m_symbol, SYMBOL_TRADE_TICK_VALUE);
 
-    Print("✔️[CTools.mqh:378]: tickValue: ", tickValue);
+    Print("✔️[CTools.mqh:379]: tickValue: ", tickValue);
 
     // 风控 / 止损 / 点值 迷你手数需要除以100
     double lot = NormalizeDouble(slMoney / (slDistance * tickValue), 2);
-    Print("✔️[CTools.mqh:382]: lot: ", lot);
+    Print("✔️[CTools.mqh:383]: lot: ", lot);
 
     double lotstep = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_STEP);
     lot = MathRound(lot / lotstep) * lotstep;
