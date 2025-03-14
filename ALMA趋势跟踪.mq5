@@ -17,10 +17,6 @@ input group "----->移动止损";
 input bool InpUseTrailingStop = true; // 是否使用移动止损
 input int InpTrailingStop = 5;        // 移动止损点数
 
-input group "----->仓位管理";
-input bool InpUseKelly = false;      // 使用凯利公式
-input double InpKellyFraction = 0.2; // 凯利分数
-input double InpStopLoss = 40000;    // 止损点数
 // 在hk50指数上测试无法盈利
 // US500  40 6.0 0.4 7 10 8  Day  0.1
 // USDJPY 50 6.0 0.85 5 10 5 Day 0.01
@@ -101,31 +97,19 @@ public:
 
         SignalType signal = TradeSignal();
 
-        double lotSize = KailiFormulaCalacte(0.35, 3.2, 84);
-
-        Print("✔️[ALMA趋势跟踪.mq5:106]: lotSize: ", lotSize);
-
         double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
         double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-        double buySl = ask - InpStopLoss * _Point;
-        double sellSl = bid + InpStopLoss * _Point;
 
         if (InpLong && signal == BuySignal && m_Tools.GetPositionCount(m_MagicNumber, POSITION_TYPE_BUY) == 0)
         {
             m_Tools.CloseAllPositions(m_MagicNumber, POSITION_TYPE_SELL);
 
-            if (InpUseKelly)
-                m_Trade.Buy(InpUseKelly ? lotSize : InpLotSize, m_Symbol, ask, buySl);
-            else
-                m_Trade.Buy(InpUseKelly ? lotSize : InpLotSize);
+            m_Trade.Buy(InpLotSize);
         }
         else if (InpShort && signal == SellSignal && m_Tools.GetPositionCount(m_MagicNumber, POSITION_TYPE_SELL) == 0)
         {
             m_Tools.CloseAllPositions(m_MagicNumber, POSITION_TYPE_BUY);
-            if (InpUseKelly)
-                m_Trade.Sell(InpUseKelly ? lotSize : InpLotSize, m_Symbol, bid, sellSl);
-            else
-                m_Trade.Sell(InpUseKelly ? lotSize : InpLotSize);
+            m_Trade.Sell(InpLotSize);
         }
     };
 
@@ -134,18 +118,6 @@ public:
         IndicatorRelease(m_ALMA.GetHandle());
         IndicatorRelease(m_EMAFast.GetHandle());
         IndicatorRelease(m_EMASlow.GetHandle());
-    };
-
-    double KailiFormulaCalacte(double winningRate, double plRate, double avgLoss)
-    {
-        double balance = AccountInfoDouble(ACCOUNT_BALANCE);
-
-        double f = (winningRate * (plRate + 1) - 1) / plRate;
-        double lotSize = (balance * f) / avgLoss * 0.01 * InpKellyFraction;
-        lotSize = NormalizeDouble(lotSize, 2);
-        if (lotSize <= InpLotSize)
-            lotSize = InpLotSize;
-        return lotSize;
     };
 };
 CALMATrendFollowing *g_Strategy;
