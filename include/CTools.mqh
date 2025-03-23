@@ -361,12 +361,10 @@ double CTools::CalcLots(double et, double sl, double slParam)
     double slMoney = 0;
     // 亏损的钱
     slMoney = AccountInfoDouble(ACCOUNT_BALANCE) * slParam / 100.0;
-    Print("✔️[CTools.mqh:364]: slMoney: ", slMoney);
     // 几位小数
     int digits = (int)SymbolInfoInteger(m_symbol, SYMBOL_DIGITS);
 
     double slDistance = NormalizeDouble(MathAbs(et - sl), digits) / _Point;
-    Print("✔️[CTools.mqh:369]: slDistance: ", slDistance);
 
     if (slDistance <= 0)
     {
@@ -376,11 +374,8 @@ double CTools::CalcLots(double et, double sl, double slParam)
 
     double tickValue = SymbolInfoDouble(m_symbol, SYMBOL_TRADE_TICK_VALUE);
 
-    Print("✔️[CTools.mqh:379]: tickValue: ", tickValue);
-
     // 风控 / 止损 / 点值 迷你手数需要除以100
     double lot = NormalizeDouble(slMoney / (slDistance * tickValue), 2);
-    Print("✔️[CTools.mqh:383]: lot: ", lot);
 
     double lotstep = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_STEP);
     lot = MathRound(lot / lotstep) * lotstep;

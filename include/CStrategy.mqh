@@ -39,30 +39,12 @@ public:
         return NoSignal;
     }
 
-    // 风险管理（虚函数，子类可自定义实现）
-    virtual bool RiskManagement()
-    {
-        // 默认通过风险管理
-        return true;
-    }
-
-    // 执行交易逻辑
-    virtual void ExecuteTrade()
-    {
-    }
-
-    virtual void ExitTrade()
-    {
-    }
-
     // Tick事件入口
-    void OnTick()
+    virtual void OnTick()
     {
-        ExecuteTrade();
     }
 
-    void OnDeinit(const int reason)
+    virtual void OnDeinit(const int reason)
     {
-        ExitTrade();
     }
 };

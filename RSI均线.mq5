@@ -67,7 +67,7 @@ public:
         return NoSignal;
     };
     // 执行交易
-    void ExecuteTrade() override
+    void OnTick() override
     {
         // 获取当前的买价和卖价
         double ask = SymbolInfoDouble(m_Symbol, SYMBOL_ASK);
@@ -146,12 +146,9 @@ public:
         return isSell ? price + stopLoss * _Point : price - stopLoss * _Point;
     }
 
-    // 计算止盈价格
-
     // 清理
-    void ExitTrade() override
+    void OnDeinit(const int reason) override
     {
-
         IndicatorRelease(m_RSI.GetHandle());
         IndicatorRelease(m_MA.GetHandle());
         delete m_RSI;

@@ -2,22 +2,22 @@
 #include "include/CIndicators.mqh"
 #include "include/CTools.mqh"
 
-// 海龟交易法则参数
-input ENUM_TIMEFRAMES InpTimeframe = PERIOD_H2; // 周期
-input int InpBaseMagicNumber = 4156454;         // 基础魔术号
+// 海龟交易法则参数 XAUUSD
+input ENUM_TIMEFRAMES InpTimeframe = PERIOD_H8; // 周期
+input int InpBaseMagicNumber = 125613;          // 基础魔术号
 
 input int InpLotType = 2;       // 1:手数,2:百分比
 input double InpLotSize = 0.01; // 手数
-input double InpMaxRisk = 1;    // 每个头寸的风险百分比
+input double InpMaxRisk = 4.0;  // 每个头寸的风险百分比
 
 input int InpEntryDCPeriod = 20;        // 入场DC周期
-input int InpExitDCPeriod = 15;         // 出场DC周期
+input int InpExitDCPeriod = 10;         // 出场DC周期
 input int InpATRPeriod = 14;            // ATR周期
-input double InpSLATRMultiplier = 2.0;  // 止损ATR倍数
-input double InpAddATRMultiplier = 0.5; // 波动多少倍加仓
+input double InpSLATRMultiplier = 3.0;  // 止损ATR倍数
+input double InpAddATRMultiplier = 1.0; // 波动多少倍加仓
 input int InpMaxAddition = 2;           // 最大加仓次数
-input bool InpLong = false;             // 做多
-input bool InpShort = true;             // 做空
+input bool InpLong = true;              // 做多
+input bool InpShort = false;            // 做空
 
 // XAUUSDc 8H 20 10 14 3 1.0
 // US500c 2H 20 15 14 2 0.5
@@ -86,7 +86,7 @@ public:
     }
 
     // 执行交易逻辑
-    void ExecuteTrade() override
+    void OnTick() override
     {
 
         double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
@@ -99,7 +99,7 @@ public:
             CloseAllPositions();
             return;
         }
-
+        m_PositionSize = m_Tools.GetPositionCount(m_MagicNumber);
         // 加仓逻辑
         if (m_PositionSize > 0 && m_PositionSize <= InpMaxAddition)
         {
@@ -147,7 +147,7 @@ public:
         double slAtr = NormalizeDouble(InpSLATRMultiplier * m_ATR.GetValue(1), 2);
         double lotSize = m_Tools.CalcLots(price, sl, InpMaxRisk);
         // 打印品种和计算出的手数,打印ATR， 打印是否开启了算法交易
-        Print(sym, " | ", tf, " | ", lotMode, " | ", lotSize, " | ", slAtr, " | ", isAutoTrade, " | ", InpEntryDCPeriod, " | ", InpExitDCPeriod);
+        Print(sym, " | ", tf, " | ", lotMode, " | ", lotSize, " | ", slAtr, " | ", isAutoTrade, " | ", InpEntryDCPeriod, " | ", InpExitDCPeriod, " | ", m_PositionSize);
     }
 
     void OnDeinit(const int reason)
