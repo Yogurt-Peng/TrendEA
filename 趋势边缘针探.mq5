@@ -98,7 +98,7 @@ public:
     };
 
     // 执行交易
-    void ExecuteTrade() override
+    void OnTick() override
     {
         if (!m_Tools.IsNewBar(m_Timeframe))
             return;
@@ -123,7 +123,7 @@ public:
         // 止盈止损
     };
     // 清理
-    void ExitTrade() override
+    void OnDeinit(int reason)
     {
     }
 };
