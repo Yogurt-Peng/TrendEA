@@ -1,213 +1,95 @@
+//+------------------------------------------------------------------+
+//|                                                  GridStrategy.mq5 |
+//|                        Copyright 2025, MetaQuotes Ltd.            |
+//|                                             https://www.mql5.com |
+//+------------------------------------------------------------------+
+#property copyright "Copyright 2025, MetaQuotes Ltd."
+#property link "https://www.mql5.com"
+#property version "1.02"
+
 #include "include/CStrategy.mqh"
 #include "include/CIndicators.mqh"
 #include "include/CTools.mqh"
 #include "include/Draw.mqh"
 
-input group "----->美日参数";
-input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 周期
+input group "-----> 网格策略参数";
+input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // 策略周期
 input int InpBaseMagicNumber = 5424524;              // 基础魔术号
 input double InpLotSize = 0.01;                      // 交易手数
-input double InpUpLimit = 160;                       // 上限
-input double InpDownLimit = 140;                     // 下限
-input int InpGridCount = 30;
+input double InpUpLimit = 160;                       // 价格上限
+input double InpDownLimit = 140;                     // 价格下限
+input int InpGridCount = 30;                         // 网格层数
 
 class CGrid : public CStrategy
 {
 private:
     CTools *m_Tools;
     CDraw m_Draw;
-    double m_GridLevels[];  // 存储所有网格价格层级
-    bool m_PendingOrders[]; // 挂单状态
+
+    // 网格数据结构
+    double m_GridPrices[];  // 网格价格数组
+    bool m_IsOrderActive[]; // 订单活跃状态
     int m_Digits;           // 品种小数位数
     double m_Point;         // 品种点值
 
-    void InitGridLevels()
+    // 初始化网格价格
+    void InitGrid()
     {
+        ArrayResize(m_GridPrices, InpGridCount);
+        ArrayResize(m_IsOrderActive, InpGridCount);
         double step = (InpUpLimit - InpDownLimit) / (InpGridCount - 1);
-        ArrayResize(m_GridLevels, InpGridCount);
-        ArrayResize(m_PendingOrders, InpGridCount);
-        for (int i = 0; i < InpGridCount; i++)
+        for (int i = 0; i < InpGridCount; ++i)
         {
-            m_GridLevels[i] = InpUpLimit - step * i;
-            m_PendingOrders[i] = true;
+            m_GridPrices[i] = InpUpLimit - step * i;
+            m_IsOrderActive[i] = true;
         }
-
-        // 初始化品种精度参数
-        m_Digits = (int)SymbolInfoInteger(m_Symbol, SYMBOL_DIGITS);
-        m_Point = SymbolInfoDouble(m_Symbol, SYMBOL_POINT);
     }
 
-    double GetTakeProfitPrice(int level)
+    // 获取止损价格
+    double GetStopPrice(int level)
     {
-        if (level < InpGridCount - 1)
-            return m_GridLevels[level + 1];
-        return m_GridLevels[level] - (m_GridLevels[0] - m_GridLevels[1]);
+        return (level == InpGridCount - 1)
+                   ? m_GridPrices[level] - (m_GridPrices[1] - m_GridPrices[0])
+                   : m_GridPrices[level + 1];
     }
 
-    bool IsSamePrice(double price1, double price2)
+    // 检查价格是否相同(带精度处理)
+    bool IsPriceEqual(double p1, double p2)
     {
-        return MathAbs(NormalizeDouble(price1, m_Digits) - NormalizeDouble(price2, m_Digits)) < (m_Point * 0.5);
+        return MathAbs(NormalizeDouble(p1, m_Digits) - NormalizeDouble(p2, m_Digits)) < m_Point * 0.5;
     }
 
 public:
-    CGrid(string symbol, ENUM_TIMEFRAMES timeFrame, int magicNumber)
-        : CStrategy(symbol, timeFrame, magicNumber)
+    CGrid(string symbol, ENUM_TIMEFRAMES tf, int magic)
+        : CStrategy(symbol, tf, magic)
     {
         m_Trade.SetExpertMagicNumber(m_MagicNumber);
         m_Tools = new CTools(symbol, &m_Trade);
-        InitGridLevels();
-    };
+        m_Digits = (int)SymbolInfoInteger(m_Symbol, SYMBOL_DIGITS);
+        m_Point = SymbolInfoDouble(m_Symbol, SYMBOL_POINT);
+        InitGrid();
+    }
 
     ~CGrid()
     {
         delete m_Tools;
-    };
-
-    void ClearOldGrids()
-    {
-        for (int i = ObjectsTotal(0, 0, -1) - 1; i >= 0; i--)
-        {
-            string name = ObjectName(0, i);
-            if (StringFind(name, "GridLine_") == 0)
-                ObjectDelete(0, name);
-        }
     }
 
+    // 主处理函数
     void OnTick() override
     {
-        if (m_Tools.IsNewBar(m_Timeframe))
+        if (m_Tools.IsNewBar(InpTimeframe))
         {
-            ClearOldGrids();
-            for (int i = 0; i < InpGridCount; i++)
-            {
-                string lineName = "GridLine_" + IntegerToString(i);
-                // m_Draw.DrawHorizontalLine(lineName, m_GridLevels[i],
-                //                           (i % 2 == 0) ? clrPink : clrGreenYellow, 1, 0);
-            }
+            ClearExpiredGrids();
+            UpdateGridPrices();
         }
+
         if (!m_Tools.IsNewBar(PERIOD_M1))
-        {
             return;
-        }
 
-        double ask = SymbolInfoDouble(m_Symbol, SYMBOL_ASK);
-
-        // 挂单逻辑
-        for (int i = InpGridCount - 1; i >= 0; i--)
-        {
-            if (m_GridLevels[i] > ask && !m_PendingOrders[i])
-            {
-                double tp_price = GetTakeProfitPrice(i);
-                if (m_Trade.SellLimit(InpLotSize, NormalizeDouble(m_GridLevels[i], m_Digits), m_Symbol, 0, NormalizeDouble(tp_price, m_Digits), ORDER_TIME_GTC, 0, "GridOrder_" + IntegerToString(i)))
-                {
-                    m_PendingOrders[i] = true;
-                    Print("SellLimit挂单成功 价格:", m_GridLevels[i], " TP:", tp_price);
-                }
-                else
-                {
-                    Print("挂单失败! 错误:", GetLastError());
-                }
-            }
-        }
-
-        int orderIndex[3]; // 最多允许3个挂单
-        int orderNumber = 0;
-        for (int i = InpGridCount - 1; i >= 0; i--)
-        {
-
-            if (m_GridLevels[i] > ask && orderNumber < 3)
-            {
-                orderIndex[orderNumber] = i;
-                orderNumber++;
-            }
-        }
-
-        for (int i = InpGridCount - 1; i >= 0; i--)
-        {
-            bool isHaveOrder = false;
-            bool isHavePosition = false;
-
-            string gridName = "GridOrder_" + IntegerToString(i);
-            for (int j = OrdersTotal() - 1; j >= 0; j--)
-            {
-                COrderInfo m_orderInfo;
-                if (m_orderInfo.SelectByIndex(j) && m_orderInfo.Symbol() == m_Symbol && m_orderInfo.Magic() == m_MagicNumber)
-                {
-                    string dsc = m_orderInfo.Comment();
-                    if (StringFind(dsc, gridName) != -1)
-                    {
-
-                        isHaveOrder = true;
-                    }
-                }
-            }
-
-            for (int j = PositionsTotal() - 1; j >= 0; j--)
-            {
-                CPositionInfo m_positionInfo;
-                if (m_positionInfo.SelectByIndex(j) && m_positionInfo.Symbol() == m_Symbol && m_positionInfo.Magic() == m_MagicNumber)
-                {
-                    string dsc = m_positionInfo.Comment();
-                    if (StringFind(dsc, gridName) != -1)
-                    {
-                        isHavePosition = true;
-                    }
-                }
-            }
-            if (!isHavePosition && !isHaveOrder)
-            {
-                bool isHaveNumber = false;
-                // 如果包含在orderIndex中，则挂单
-                for (int j = 0; j < orderNumber; j++)
-                {
-                    if (orderIndex[j] == i)
-                    {
-                        isHaveNumber = true;
-                    }
-                }
-
-                if (isHaveNumber)
-                {
-                    m_PendingOrders[i] = false;
-                }
-                else
-                {
-                    m_PendingOrders[i] = true;
-                }
-            }
-        }
-
-        for (int i = InpGridCount - 1; i >= 0; i--)
-        {
-
-            string gridName = "GridOrder_" + IntegerToString(i);
-            bool isHaveNumber = false;
-            ulong ticket = 0;
-            for (int j = OrdersTotal() - 1; j >= 0; j--)
-            {
-                COrderInfo m_orderInfo;
-                if (m_orderInfo.SelectByIndex(j) && m_orderInfo.Symbol() == m_Symbol && m_orderInfo.Magic() == m_MagicNumber)
-                {
-                    string dsc = m_orderInfo.Comment();
-                    if (dsc == gridName)
-                    {
-                        // 如果包含在orderIndex中，则挂单
-                        for (int k = 0; k < orderNumber; k++)
-                        {
-                            if (orderIndex[k] == i)
-                            {
-                                isHaveNumber = true;
-                            }
-                        }
-                        if (!isHaveNumber)
-                            ticket = m_orderInfo.Ticket();
-                    }
-                }
-            }
-
-            if (!isHaveNumber && ticket != 0)
-                m_Trade.OrderDelete(ticket);
-        }
+        double currentAsk = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+        ProcessOrderPlacement(currentAsk);
+        CleanupInactiveOrders();
     }
 
     void OnDeinit(const int reason)
@@ -215,34 +97,133 @@ public:
         m_Tools.CloseAllPositions(m_MagicNumber);
         m_Tools.DeleteAllOrders(m_MagicNumber);
     }
+
+private:
+    // 清除过期网格线
+    void ClearExpiredGrids()
+    {
+        for (int i = ObjectsTotal(0, 0, -1) - 1; i >= 0; --i)
+        {
+            string objName = ObjectName(0, i);
+            if (StringFind(objName, "GridLine_") == 0)
+                ObjectDelete(0, objName);
+        }
+    }
+
+    // 更新网格价格状态
+    void UpdateGridPrices()
+    {
+        for (int i = 0; i < InpGridCount; ++i)
+        {
+            m_IsOrderActive[i] = (m_GridPrices[i] > SymbolInfoDouble(_Symbol, SYMBOL_BID));
+        }
+    }
+
+    // 处理订单逻辑
+    void ProcessOrderPlacement(double currentAsk)
+    {
+        // 从下往上检查可挂单位置
+        for (int i = InpGridCount - 1; i >= 0; --i)
+        {
+            if (m_IsOrderActive[i] && m_GridPrices[i] > currentAsk)
+            {
+                PlaceGridOrder(i);
+            }
+        }
+    }
+
+    // 下单操作
+    void PlaceGridOrder(int level)
+    {
+        string comment = "GridOrder_" + IntegerToString(level);
+        double price = NormalizeDouble(m_GridPrices[level], m_Digits);
+        double sl = NormalizeDouble(GetStopPrice(level), m_Digits);
+
+        if (m_Trade.SellLimit(InpLotSize, price, _Symbol, 0, sl,
+                              ORDER_TIME_GTC, 0, comment))
+        {
+            PrintFormat("挂单成功: 层级 %d, 价格 %.5f, TP %.5f",
+                        level, price, sl);
+        }
+        else
+        {
+            Print("挂单失败! 错误:", GetLastError());
+        }
+    }
+
+    // 清理无效订单
+    void CleanupInactiveOrders()
+    {
+        for (int i = 0; i < InpGridCount; ++i)
+        {
+            if (!m_IsOrderActive[i])
+            {
+                ulong ticket = FindOrderTicketByLevel(i);
+                if (ticket != 0)
+                {
+                    m_Trade.OrderDelete(ticket);
+                    Print("已删除无效订单:", ticket);
+                }
+            }
+        }
+    }
+
+    // 根据层级查找订单
+    ulong FindOrderTicketByLevel(int level)
+    {
+        for (int j = OrdersTotal() - 1; j >= 0; --j)
+        {
+            COrderInfo order;
+            if (order.SelectByIndex(j) && order.Symbol() == _Symbol &&
+                order.Magic() == m_MagicNumber)
+            {
+                string comment = order.Comment();
+                if (StringFind(comment, "GridOrder_") == 0 &&
+                    StringFind(comment, IntegerToString(level)) != -1)
+                {
+                    return order.Ticket();
+                }
+            }
+        }
+        return 0;
+    }
 };
 
-CGrid *g_Strategy;
+// 全局策略实例
+CGrid *g_pStrategy;
 
+// 初始化函数
 int OnInit()
 {
     if (InpGridCount < 2)
     {
         Alert("网格数量必须大于1!");
-        return INIT_PARAMETERS_INCORRECT;
+        return (INIT_PARAMETERS_INCORRECT);
     }
 
     if (InpUpLimit <= InpDownLimit)
     {
         Alert("上限必须大于下限!");
-        return INIT_PARAMETERS_INCORRECT;
+        return (INIT_PARAMETERS_INCORRECT);
     }
 
-    g_Strategy = new CGrid(_Symbol, InpTimeframe, InpBaseMagicNumber);
-    return INIT_SUCCEEDED;
+    g_pStrategy = new CGrid(_Symbol, InpTimeframe, InpBaseMagicNumber);
+    return (INIT_SUCCEEDED);
 }
 
+// 主循环
 void OnTick()
 {
-    g_Strategy.OnTick();
+    if (g_pStrategy)
+        g_pStrategy.OnTick();
 }
 
+// 去初始化
 void OnDeinit(const int reason)
 {
-    g_Strategy.OnDeinit(reason);
+    if (g_pStrategy)
+    {
+        g_pStrategy.OnDeinit(reason);
+        delete g_pStrategy;
+    }
 }
