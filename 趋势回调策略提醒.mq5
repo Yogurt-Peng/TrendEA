@@ -3,12 +3,11 @@
 #include "include/CTools.mqh"
 
 input group "---->画线价格提醒策略";
-input ENUM_TIMEFRAMES InpTimeframe = PERIOD_M5;                      // 时间周期
-input string InpSymbols = "XAUUSDm|BTCUSDm|EURUSDm|AUDUSDm|GBPUSDm"; // 交易品种
-input int InpMagicNumber = 542824;                                   // 基础魔术号
-input int InpBarsBack = 15;                                          // 回溯周期
-input int InpEMAPeriod = 20;                                         // EMA周期
-input int InpCoolDownBarCount = 2;                                   // 冷却周期
+input ENUM_TIMEFRAMES InpTimeframe = PERIOD_M5;                                                             // 时间周期
+input string InpSymbols = "XAUUSDm|BTCUSDm|EURUSDm|AUDUSDm|GBPUSDm|USDCHFm|USDCADm|USDJPYm|US500m|NZDUSDm"; // 交易品种
+input int InpMagicNumber = 542824;                                                                          // 基础魔术号
+input int InpBarsBack = 15;                                                                                 // 回溯周期
+input int InpCoolDownBarCount = 3;                                                                          // 冷却周期
 
 string SymbolsArray[];
 int SymbolsCount;
@@ -17,29 +16,22 @@ class CTrendFollow : public CStrategy
 {
 private:
     CTools *m_Tools;
-    CMA *m_EMA;
+    CMA *m_EMA_1;
+    CMA *m_EMA_2;
+    CMA *m_EMA_3;
     int m_CoolDownBarCount; // 冷却周期计数器，邮件触发后设为2，之后每个新K线减1
 
 public:
-    CTrendFollow(string symbol, ENUM_TIMEFRAMES timeFrame, int magicNumber, int emaPeriod)
+    CTrendFollow(string symbol, ENUM_TIMEFRAMES timeFrame, int magicNumber)
         : CStrategy(symbol, timeFrame, magicNumber), m_CoolDownBarCount(0)
     {
-        m_EMA = new CMA(m_Symbol, m_Timeframe, emaPeriod, MODE_EMA);
+        m_EMA_1 = new CMA(m_Symbol, m_Timeframe, 21, MODE_EMA);
+        m_EMA_2 = new CMA(m_Symbol, m_Timeframe, 34, MODE_EMA);
+        m_EMA_3 = new CMA(m_Symbol, m_Timeframe, 55, MODE_EMA);
         m_Tools = new CTools(symbol, &m_Trade);
         m_Trade.SetExpertMagicNumber(m_MagicNumber);
     }
-    ~CTrendFollow()
-    {
-
-        if (m_EMA)
-        {
-            delete m_EMA;
-        }
-        if (m_Tools)
-        {
-            delete m_Tools;
-        }
-    }
+    ~CTrendFollow() {};
 
     // 检查回溯周期内所有K线收盘价是否均在EMA上方或下方
     SignalType TradeSignal()
@@ -49,7 +41,7 @@ public:
         for (int i = 2; i <= InpBarsBack + 1; i++)
         {
             double close = iClose(m_Symbol, m_Timeframe, i);
-            double ema = m_EMA.GetValue(i);
+            double ema = m_EMA_1.GetValue(i);
             if (close <= ema)
                 allBarsAboveEMA = false;
             if (close >= ema)
@@ -58,20 +50,28 @@ public:
                 break;
         }
         if (allBarsAboveEMA)
-            return BuySignal;
+        {
+            if (m_EMA_1.GetValue(1) > m_EMA_2.GetValue(1) && m_EMA_2.GetValue(1) > m_EMA_3.GetValue(1))
+                return BuySignal;
+        }
         if (allBarsBelowEMA)
-            return SellSignal;
+        {
+            if (m_EMA_1.GetValue(1) < m_EMA_2.GetValue(1) && m_EMA_2.GetValue(1) < m_EMA_3.GetValue(1))
+                return SellSignal;
+        }
         return NoSignal;
     }
 
     bool Initialize() override
     {
-        if (!m_EMA.Initialize())
+        if (!m_EMA_1.Initialize() || !m_EMA_2.Initialize() || !m_EMA_3.Initialize())
         {
             Print("EMA 初始化失败");
             return false;
         }
-        ChartIndicatorAdd(0, 0, m_EMA.GetHandle());
+        ChartIndicatorAdd(0, 0, m_EMA_1.GetHandle());
+        ChartIndicatorAdd(0, 0, m_EMA_2.GetHandle());
+        ChartIndicatorAdd(0, 0, m_EMA_3.GetHandle());
         m_Trade.SetExpertMagicNumber(m_MagicNumber);
         return true;
     }
@@ -90,7 +90,7 @@ public:
         }
 
         SignalType sign = TradeSignal();
-        double currentEMA = m_EMA.GetValue(1);
+        double currentEMA = m_EMA_1.GetValue(1);
         double high = iHigh(m_Symbol, m_Timeframe, 1);
         double low = iLow(m_Symbol, m_Timeframe, 1);
 
@@ -112,7 +112,7 @@ public:
 
     void OnDeinit(const int reason) override
     {
-        IndicatorRelease(m_EMA.GetHandle());
+        IndicatorRelease(m_EMA_1.GetHandle());
     }
 };
 
@@ -134,7 +134,7 @@ int OnInit()
     for (int i = 0; i < SymbolsCount; i++)
     {
         StrategyArray[i] = new CTrendFollow(SymbolsArray[i], InpTimeframe,
-                                            GenerateMagicNumber(InpMagicNumber, i, 0), InpEMAPeriod);
+                                            GenerateMagicNumber(InpMagicNumber, i, 0));
         if (!StrategyArray[i].Initialize())
         {
             Print("Failed to initialize strategy for ", SymbolsArray[i]);
