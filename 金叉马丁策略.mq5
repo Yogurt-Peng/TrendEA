@@ -95,7 +95,7 @@ public:
         return NoSignal;
     }
 
-    void ExecuteTrade() override
+    void OnTick() override
     {
 
         // 检查强制平仓条件
