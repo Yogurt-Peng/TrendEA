@@ -4,28 +4,34 @@
 
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_M5; // 时间周期
 input int InpBaseMagicNumber = 34288;           // 基础魔术号
-input double InpLotSize = 0.03;                 // 交易手数
+input double InpLotSize = 0.03;                 // 初始交易手数
 input int InpEMA = 20;                          // EMA
 input int InpFluctuatePoints = 200;             // 波动点数
-input int InpMaxMultiplier = 16;                // 最大手数倍数限制
+input int InpMaxMultiplier = 64;                // 最大手数倍数限制
 
 class CVolatilityStrategy : public CStrategy
 {
 private:
     CTools *m_Tools;
     CMA *m_EMA;
-    double m_LastLotSize;        // 记录上一次开仓手数
-    bool m_TodayTradingFinished; // 标记今日交易是否已完成
-    datetime m_LastTradeDay;     // 记录上一次交易的日期
+    double m_CurrentLotSize;       // 当前交易手数
+    bool m_TodayTradingFinished;   // 标记今日交易是否已完成
+    datetime m_LastTradeDay;       // 记录上一次交易的日期
+    SignalType m_FirstTradeSignal; // 记录今日首次交易信号
+    bool m_FirstTradeExecuted;     // 标记今日首次交易是否已执行
+    bool m_WaitingForNewSignal;    // 标记是否在等待新信号
 
 public:
     CVolatilityStrategy(string symbol, ENUM_TIMEFRAMES timeFrame, int magicNumber) : CStrategy(symbol, timeFrame, magicNumber)
     {
         m_EMA = new CMA(symbol, timeFrame, InpEMA, MODE_EMA);
         m_Tools = new CTools(symbol, &m_Trade);
-        m_LastLotSize = InpLotSize;
+        m_CurrentLotSize = InpLotSize;
         m_TodayTradingFinished = false;
         m_LastTradeDay = 0;
+        m_FirstTradeSignal = NoSignal;
+        m_FirstTradeExecuted = false;
+        m_WaitingForNewSignal = false;
     }
 
     bool Initialize() override
@@ -51,32 +57,24 @@ public:
 
     bool TimeSession(int aStartHour, int aStartMinute, int aStopHour, int aStopMinute, datetime aTimeCur)
     {
-        //--- session start time
+        // 原有时间判断逻辑保持不变
         int StartTime = 3600 * aStartHour + 60 * aStartMinute;
-        //--- session end time
         int StopTime = 3600 * aStopHour + 60 * aStopMinute;
-        //--- current time in seconds since the day start
         aTimeCur = aTimeCur % 86400;
         if (StopTime < StartTime)
         {
-            //--- going past midnight
             if (aTimeCur >= StartTime || aTimeCur < StopTime)
-            {
-                return (true);
-            }
+                return true;
         }
         else
         {
-            //--- within one day
             if (aTimeCur >= StartTime && aTimeCur < StopTime)
-            {
-                return (true);
-            }
+                return true;
         }
-        return (false);
+        return false;
     }
 
-    // 检查是否有盈利的交易
+    // 检查今日是否有盈利的交易
     bool HasProfitableTradeToday()
     {
         datetime today = iTime(m_Symbol, PERIOD_D1, 0);
@@ -95,26 +93,36 @@ public:
                 }
             }
         }
-
         return totalProfit > 0;
     }
 
-    // 检查当前持仓是否有盈利
-    bool HasOpenPositionProfit()
+    // 检查是否有止损的交易
+    bool HasStoppedOutTradeToday(SignalType &lastSignal)
     {
-        double totalProfit = 0.0;
-        int total = PositionsTotal();
+        datetime today = iTime(m_Symbol, PERIOD_D1, 0);
 
-        for (int i = 0; i < total; i++)
+        if (HistorySelect(today, TimeCurrent()))
         {
-            ulong ticket = PositionGetTicket(i);
-            if (PositionGetInteger(POSITION_MAGIC) == m_MagicNumber)
+            int total = HistoryDealsTotal();
+            for (int i = total - 1; i >= 0; i--) // 从最新交易开始检查
             {
-                totalProfit += PositionGetDouble(POSITION_PROFIT);
+                ulong ticket = HistoryDealGetTicket(i);
+                if (HistoryDealGetInteger(ticket, DEAL_MAGIC) == m_MagicNumber)
+                {
+                    long reason = HistoryDealGetInteger(ticket, DEAL_REASON);
+                    if (reason == DEAL_REASON_SL) // 止损平仓
+                    {
+                        long type = HistoryDealGetInteger(ticket, DEAL_TYPE);
+                        if (type == DEAL_TYPE_BUY)
+                            lastSignal = BuySignal;
+                        else if (type == DEAL_TYPE_SELL)
+                            lastSignal = SellSignal;
+                        return true;
+                    }
+                }
             }
         }
-
-        return totalProfit > 0;
+        return false;
     }
 
     // 重置每日交易状态
@@ -125,7 +133,42 @@ public:
         {
             m_LastTradeDay = today;
             m_TodayTradingFinished = false;
-            m_LastLotSize = InpLotSize; // 重置为首单手数
+            m_CurrentLotSize = InpLotSize;
+            m_FirstTradeSignal = NoSignal;
+            m_FirstTradeExecuted = false;
+            m_WaitingForNewSignal = false;
+        }
+    }
+
+    // 执行交易
+    void ExecuteTrade(SignalType signal)
+    {
+        double ask = SymbolInfoDouble(m_Symbol, SYMBOL_ASK);
+        double bid = SymbolInfoDouble(m_Symbol, SYMBOL_BID);
+
+        // 确保手数不超过账户允许的最大值
+        double maxLot = SymbolInfoDouble(m_Symbol, SYMBOL_VOLUME_MAX);
+        double lotSize = MathMin(m_CurrentLotSize, maxLot);
+
+        if (signal == BuySignal)
+        {
+            double sl = ask - InpFluctuatePoints * SymbolInfoDouble(m_Symbol, SYMBOL_POINT);
+            double tp = ask + InpFluctuatePoints * SymbolInfoDouble(m_Symbol, SYMBOL_POINT);
+            if (m_Trade.Buy(lotSize, m_Symbol, ask, sl, tp, "Buy Entry"))
+            {
+                m_FirstTradeExecuted = true;
+                m_WaitingForNewSignal = false;
+            }
+        }
+        else if (signal == SellSignal)
+        {
+            double sl = bid + InpFluctuatePoints * SymbolInfoDouble(m_Symbol, SYMBOL_POINT);
+            double tp = bid - InpFluctuatePoints * SymbolInfoDouble(m_Symbol, SYMBOL_POINT);
+            if (m_Trade.Sell(lotSize, m_Symbol, bid, sl, tp, "Sell Entry"))
+            {
+                m_FirstTradeExecuted = true;
+                m_WaitingForNewSignal = false;
+            }
         }
     }
 
@@ -155,54 +198,43 @@ public:
         // 检查是否有持仓
         int positionCount = m_Tools.GetPositionCount(m_MagicNumber);
         if (positionCount > 0)
+            return;
+
+        // 检查是否有止损的交易
+        SignalType lastSignal = NoSignal;
+        bool hasStoppedOut = HasStoppedOutTradeToday(lastSignal);
+
+        if (hasStoppedOut)
         {
-            // 如果有持仓且盈利，则今日交易完成
-            if (HasOpenPositionProfit())
+            // 如果止损了，下一次交易方向相反，手数翻倍
+            m_CurrentLotSize *= 2;
+            if (m_CurrentLotSize > InpLotSize * InpMaxMultiplier)
             {
-                m_TodayTradingFinished = true;
+                m_TodayTradingFinished = true; // 达到最大手数限制，停止今日交易
+                return;
             }
+
+            // 确定下一次交易方向
+            // SignalType nextSignal = (lastSignal == BuySignal) ? SellSignal : BuySignal;
+            ExecuteTrade(lastSignal);
             return;
         }
 
-        SignalType signal = TradeSignal();
-        if (signal == NoSignal)
-            return;
-
-        double ask = SymbolInfoDouble(m_Symbol, SYMBOL_ASK);
-        double bid = SymbolInfoDouble(m_Symbol, SYMBOL_BID);
-
-        // 计算手数，不超过最大倍数限制
-        double lotSize = m_LastLotSize;
-        if (!HasProfitableTradeToday() && m_LastLotSize < InpLotSize * InpMaxMultiplier)
+        // 如果是今日首次交易且未执行过
+        if (!m_FirstTradeExecuted && !m_WaitingForNewSignal)
         {
-            lotSize = m_LastLotSize * 2;
-        }
-
-        // 确保手数不超过账户允许的最大值
-        double maxLot = SymbolInfoDouble(m_Symbol, SYMBOL_VOLUME_MAX);
-        lotSize = MathMin(lotSize, maxLot);
-
-        if (signal == BuySignal)
-        {
-            double sl = ask - InpFluctuatePoints * SymbolInfoDouble(m_Symbol, SYMBOL_POINT);
-            double tp = ask + InpFluctuatePoints * SymbolInfoDouble(m_Symbol, SYMBOL_POINT);
-            if (m_Trade.Buy(lotSize, m_Symbol, ask, sl, tp, "Buy Entry"))
+            m_FirstTradeSignal = TradeSignal();
+            if (m_FirstTradeSignal != NoSignal)
             {
-                m_LastLotSize = lotSize; // 记录本次开仓手数
+                ExecuteTrade(m_FirstTradeSignal);
             }
-        }
-        else if (signal == SellSignal)
-        {
-            double sl = bid + InpFluctuatePoints * SymbolInfoDouble(m_Symbol, SYMBOL_POINT);
-            double tp = bid - InpFluctuatePoints * SymbolInfoDouble(m_Symbol, SYMBOL_POINT);
-            if (m_Trade.Sell(lotSize, m_Symbol, bid, sl, tp, "Sell Entry"))
+            else
             {
-                m_LastLotSize = lotSize; // 记录本次开仓手数
+                m_WaitingForNewSignal = true;
             }
         }
     }
 };
-
 CVolatilityStrategy *g_Strategy;
 
 int OnInit()
