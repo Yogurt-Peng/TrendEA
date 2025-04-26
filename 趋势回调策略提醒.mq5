@@ -3,11 +3,12 @@
 #include "include/CTools.mqh"
 
 input group "---->画线价格提醒策略";
-input ENUM_TIMEFRAMES InpTimeframe = PERIOD_M5;                                                             // 时间周期
-input string InpSymbols = "XAUUSDm|BTCUSDm|EURUSDm|AUDUSDm|GBPUSDm|USDCHFm|USDCADm|USDJPYm|US500m|NZDUSDm"; // 交易品种
-input int InpMagicNumber = 542824;                                                                          // 基础魔术号
-input int InpBarsBack = 15;                                                                                 // 回溯周期
-input int InpCoolDownBarCount = 3;                                                                          // 冷却周期
+input ENUM_TIMEFRAMES InpTimeframe = PERIOD_M5;                                                      // 时间周期
+input string InpSymbols = "XAUUSDc|BTCUSDc|EURUSDc|AUDUSDc|GBPUSDc|USDCHFc|USDCADc|USDJPYc|NZDUSDc"; // 交易品种
+input int InpMagicNumber = 542824;                                                                   // 基础魔术号
+input int InpBarsBack = 15;
+input int InpBarsBjBack = 100;     // 回溯周期
+input int InpCoolDownBarCount = 3; // 冷却周期
 
 string SymbolsArray[];
 int SymbolsCount;
@@ -38,6 +39,10 @@ public:
     {
         bool allBarsAboveEMA = true;
         bool allBarsBelowEMA = true;
+
+        bool bgIsLong = true;
+        bool bgIsShort = true;
+
         for (int i = 2; i <= InpBarsBack + 1; i++)
         {
             double close = iClose(m_Symbol, m_Timeframe, i);
@@ -49,12 +54,25 @@ public:
             if (!allBarsAboveEMA && !allBarsBelowEMA)
                 break;
         }
-        if (allBarsAboveEMA)
+
+        for (int i = 2; i <= InpBarsBjBack + 1; i++)
+        {
+            double ema2 = m_EMA_2.GetValue(i);
+            double ema3 = m_EMA_3.GetValue(i);
+            if (ema2 <= ema3)
+                bgIsLong = false;
+            if (ema2 >= ema3)
+                bgIsShort = false;
+            if (!bgIsLong && !bgIsShort)
+                break;
+        }
+
+        if (allBarsAboveEMA && bgIsLong)
         {
             if (m_EMA_1.GetValue(1) > m_EMA_2.GetValue(1) && m_EMA_2.GetValue(1) > m_EMA_3.GetValue(1))
                 return BuySignal;
         }
-        if (allBarsBelowEMA)
+        if (allBarsBelowEMA && bgIsShort)
         {
             if (m_EMA_1.GetValue(1) < m_EMA_2.GetValue(1) && m_EMA_2.GetValue(1) < m_EMA_3.GetValue(1))
                 return SellSignal;
