@@ -59,35 +59,6 @@ public:
     }
 };
 
-//+------------------------------------------------------------------+
-//|                                                          RSI     |
-//+------------------------------------------------------------------+
-/**
- * @class CRSI
- * @brief RSI（相对强弱指数）指标类，用于计算股票或其他金融产品的相对强弱指数。
- *
- * CRSI类继承自CIndicator类，用于计算和返回相对强弱指数。该类的主要功能是计算并返回一个特定时间段内股票或其他金融产品的相对强弱指数。
- *
- * 核心功能：
- * - 计算相对强弱指数
- * - 返回相对强弱指数的名称
- *
- * 构造函数参数：
- * - symbol: 股票或其他金融产品的代码
- * - tf: 时间框架，例如日、周、月等
- * - period: 计算相对强弱指数的时间段
- * - applied: 应用的价格类型，默认为收盘价
- *
- * 使用示例：
- * @code
- * CRSI rsi("AAPL", ENUM_TIMEFRAMES::DAILY, 14);
- * string name = rsi.GetName();
- * @endcode
- *
- * 注意事项：
- * - 构造函数参数period必须大于0
- * - 构造函数参数applied必须是有效的价格类型
- */
 class CRSI : public CIndicator
 {
 protected:
@@ -419,30 +390,6 @@ public:
     double S2(int index) { return GetValue(5, index); }
     double S3(int index) { return GetValue(6, index); }
 };
-//+------------------------------------------------------------------+
-//|                                                      Usage       |
-//+------------------------------------------------------------------+
-/*
-void OnStart()
-{
-    CRSI rsi(_Symbol, PERIOD_H1, 14, PRICE_CLOSE);
-    if(!rsi.Initialize()) return;
-
-    Print("Current RSI: ", rsi.GetValue(0, 0));
-
-    CBollinger boll(_Symbol, PERIOD_H1, 20, 2.0);
-    if(!boll.Initialize()) return;
-
-    Print("Upper Band: ", boll.Upper(0));
-
-    CHeikenAshi ha(_Symbol, PERIOD_H1);
-    if(!ha.Initialize()) return;
-
-    ha.Refresh();
-    Print("HA Close: ", ha.Close(0));
-}
-*/
-//+------------------------------------------------------------------+
 
 //+------------------------------------------------------------------+
 //|                                                      WilliamsR  |

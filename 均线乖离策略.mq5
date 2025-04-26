@@ -64,7 +64,7 @@ public:
         return NoSignal;
     };
 
-    void ExecuteTrade() override
+    void OnTick() override
     {
 
         if (!m_Tools.IsNewBar(m_Timeframe))
