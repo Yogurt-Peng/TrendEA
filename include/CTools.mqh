@@ -379,7 +379,7 @@ double CTools::CalcLots(double et, double sl, double slParam)
 
     double lotstep = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_STEP);
     lot = MathRound(lot / lotstep) * lotstep;
-
+    lot = NormalizeDouble(lot, 2);
     return lot;
 }
 

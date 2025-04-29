@@ -3,6 +3,7 @@
 #include "include/CTools.mqh"
 
 // 海龟交易法则参数 XAUUSD
+input group "---->海龟交易法BTCUSD";
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_H2; // 周期
 input int InpBaseMagicNumber = 4331242;         // 基础魔术号
 
@@ -11,8 +12,8 @@ input double InpLotSize = 0.01; // 手数
 input double InpMaxRisk = 4.0;  // 每个头寸的风险百分比
 
 input int InpEntryDCPeriod = 20;        // 入场DC周期
-input int InpExitDCPeriod = 15;         // 出场DC周期
-input int InpATRPeriod = 15;            // ATR周期
+input int InpExitDCPeriod = 10;         // 出场DC周期
+input int InpATRPeriod = 14;            // ATR周期
 input double InpSLATRMultiplier = 2.0;  // 止损ATR倍数
 input double InpAddATRMultiplier = 0.5; // 波动多少倍加仓
 input int InpMaxAddition = 2;           // 最大加仓次数
