@@ -16,10 +16,14 @@ private:
     CPositionInfo m_positionInfo;
     COrderInfo m_orderInfo;
     datetime m_prevBarTime;
+    datetime m_prevTime;
 
 public:
     CTools(string symbol, CTrade *_trade);
     ~CTools();
+    // 判断是否过去N秒
+    bool IsPastSeconds(int seconds);
+    // 判断是否是新的K线
     bool IsNewBar(ENUM_TIMEFRAMES timeframe);
     // 盈亏衡
     void ApplyBreakEven(int triggerPPoints, int movePoints, long magicNum);
@@ -63,6 +67,17 @@ bool CTools::IsNewBar(ENUM_TIMEFRAMES timeframe)
     if (m_prevBarTime < currentBarTime)
     {
         m_prevBarTime = currentBarTime;
+        return true;
+    }
+    return false;
+}
+// 判断是否过去了N秒
+bool CTools::IsPastSeconds(int seconds)
+{
+    datetime current = TimeCurrent();
+    if (current - m_prevTime >= seconds)
+    {
+        m_prevTime = current; // 更新为本次触发时间
         return true;
     }
     return false;

@@ -70,6 +70,9 @@ void OnTick()
         }
     }
 
+    // if (!g_Tools.IsPastSeconds(5))
+    //     return;
+
     if (!g_Tools.IsNewBar(PERIOD_M1))
         return;
 
@@ -121,9 +124,9 @@ SignalType TradeSignal()
     double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
     double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
 
-    if (ask > g_DCEntry.Upper(1))
+    if (ask > g_DCEntry.Upper(0))
         return BuySignal;
-    if (bid < g_DCEntry.Lower(1))
+    if (bid < g_DCEntry.Lower(0))
         return SellSignal;
     return NoSignal;
 }
