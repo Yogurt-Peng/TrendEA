@@ -147,7 +147,6 @@ void OpenPosition(double price, double sl, SignalType direction, string comment)
 
     g_LastEntryPrice = price;
     g_EntryATR = g_ATR.GetValue(1);
-    g_PositionSize++;
 }
 // 修改所有订单止损
 void ChangeAllOrderSLTP(double sl)
@@ -168,7 +167,20 @@ void ChangeAllOrderSLTP(double sl)
 // 加仓
 void AddPosition(double price, double sl, SignalType direction, string comment)
 {
-    OpenPosition(price, sl, direction, comment);
+
+    g_Direction = direction;
+    double lotSize = 0;
+    if (InpLotType == 2)
+        lotSize = g_Tools.CalcLots(price, sl, InpMaxRisk);
+    else
+        lotSize = InpLotSize;
+
+    if (g_Direction == BuySignal)
+        g_Trade.Buy(lotSize, _Symbol, price, sl, 0, comment);
+    else if (g_Direction == SellSignal)
+        g_Trade.Sell(lotSize, _Symbol, price, sl, 0, comment);
+
+    g_LastEntryPrice = price;
     ChangeAllOrderSLTP(sl);
     Print(comment);
 }
