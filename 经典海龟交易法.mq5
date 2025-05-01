@@ -1,6 +1,6 @@
 #include "include/CIndicators.mqh"
 #include "include/CTools.mqh"
-
+#include "include/Draw.mqh"
 input group "---->海龟交易法";
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_H2; // 周期
 input int InpMagicNumber = 1231523;             // 基础魔术号
@@ -22,16 +22,16 @@ enum SignalType
     SellSignal,
     NoSignal
 };
-
+CDraw g_Draw;
 CTrade g_Trade;
 CTools *g_Tools;
 CATR *g_ATR;
 CDonchian *g_DCEntry;
 SignalType g_Direction; // 交易方向
 
-int g_PositionSize;
-double g_LastEntryPrice;
-double g_EntryATR;
+int g_PositionSize = 0;
+double g_LastEntryPrice = 0;
+double g_EntryATR = 0;
 
 int OnInit()
 {
@@ -57,7 +57,7 @@ void OnTick()
     g_PositionSize = g_Tools.GetPositionCount(InpMagicNumber);
 
     // 加仓逻辑
-    if (g_PositionSize > 0 && g_PositionSize <= InpMaxAddition)
+    if (g_PositionSize > 0 && g_PositionSize <= InpMaxAddition && g_LastEntryPrice > 0 && g_EntryATR > 0)
     {
         if (g_Direction == BuySignal && (ask - g_LastEntryPrice) >= InpAddATRMultiplier * g_EntryATR)
         {
@@ -97,25 +97,32 @@ void OnTick()
 
 void OnTimer()
 {
-    string sym = _Symbol;
-    string tf = EnumToString(InpTimeframe);
-    string lotMode = InpLotType == 1 ? "固定手数" : "ATR倍数";
-    string isAutoTrade = TerminalInfoInteger(TERMINAL_TRADE_ALLOWED) == 1 ? "开启算法交易" : "算法交易被关闭";
 
-    string direction;
+    string log[6];
+
+    log[0] = _Symbol;
+    log[1] = EnumToString(InpTimeframe);
+    log[2] = InpLotType == 1 ? "固定手数" : "ATR倍数";
+    log[3] = TerminalInfoInteger(TERMINAL_TRADE_ALLOWED) == 1 ? "开启算法交易" : "算法交易被关闭";
 
     if (InpLong && InpShort)
-        direction = "做多做空";
+        log[4] = "做多做空";
     else if (InpLong)
-        direction = "做多";
+        log[4] = "做多";
     else if (InpShort)
-        direction = "做空";
-
+        log[4] = "做空";
     double price = iClose(_Symbol, InpTimeframe, 1);
     double sl = price - InpSLATRMultiplier * g_ATR.GetValue(1);
     double lotSize = g_Tools.CalcLots(price, sl, InpMaxRisk);
-    // 打印品种和计算出的手数,打印ATR， 打印是否开启了算法交易
-    Print(sym, " | ", tf, " | ", lotMode, " | ", lotSize, " | ", isAutoTrade, " | ", InpEntryDCPeriod, " | ", InpExitDCPeriod, " | ", g_PositionSize, " | ", direction);
+    log[5] = string(lotSize);
+
+    string logString = "";
+    for (int i = 0; i < ArraySize(log); i++)
+    {
+        logString += log[i] + " | ";
+    }
+    Print(logString);
+    g_Draw.DrawLabel("info", logString, 100, 50, clrYellow);
 }
 
 SignalType TradeSignal()
