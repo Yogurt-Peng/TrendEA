@@ -43,7 +43,7 @@ int OnInit()
     if (!g_ATR.Initialize() || !g_DCEntry.Initialize())
         return (INIT_FAILED);
 
-    ChartIndicatorAdd(0, 1, g_ATR.GetHandle());
+    // ChartIndicatorAdd(0, 1, g_ATR.GetHandle());
     ChartIndicatorAdd(0, 0, g_DCEntry.GetHandle());
     EventSetTimer(10); // 设置定时器，每10秒执行一次OnTimer函数
 
