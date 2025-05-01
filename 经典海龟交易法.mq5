@@ -54,7 +54,6 @@ void OnTick()
 {
     double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
     double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-    double atrValue = g_ATR.GetValue(1);
     g_PositionSize = g_Tools.GetPositionCount(InpMagicNumber);
 
     // 加仓逻辑
@@ -62,11 +61,11 @@ void OnTick()
     {
         if (g_Direction == BuySignal && (ask - g_LastEntryPrice) >= InpAddATRMultiplier * g_EntryATR)
         {
-            AddPosition(ask, ask - InpSLATRMultiplier * atrValue, g_Direction, "Buy Addition");
+            AddPosition(ask, ask - InpSLATRMultiplier * g_EntryATR, g_Direction, "Buy Addition");
         }
         else if (g_Direction == SellSignal && (g_LastEntryPrice - bid) >= InpAddATRMultiplier * g_EntryATR)
         {
-            AddPosition(bid, bid + InpSLATRMultiplier * atrValue, g_Direction, "Sell Addition");
+            AddPosition(bid, bid + InpSLATRMultiplier * g_EntryATR, g_Direction, "Sell Addition");
         }
     }
 
@@ -82,6 +81,7 @@ void OnTick()
     // 初始入场逻辑
     if (g_PositionSize == 0)
     {
+        double atrValue = g_ATR.GetValue(1);
 
         SignalType signal = TradeSignal();
         if (signal == BuySignal && InpLong)
@@ -179,8 +179,8 @@ void AddPosition(double price, double sl, SignalType direction, string comment)
         g_Trade.Buy(lotSize, _Symbol, price, sl, 0, comment);
     else if (g_Direction == SellSignal)
         g_Trade.Sell(lotSize, _Symbol, price, sl, 0, comment);
-
     g_LastEntryPrice = price;
+
     ChangeAllOrderSLTP(sl);
     Print(comment);
 }
